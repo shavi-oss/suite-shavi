@@ -7,32 +7,32 @@
 | Module Name    | platform-admin                          |
 | Document Title | MODULE_EXECUTION_AUTHORIZATION          |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | PENDING APPROVAL                        |
+| Status         | AUTHORIZED — IMPLEMENTATION (v1.0)      |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | TBD (upon approval)                     |
+| Effective Date | 2026-01-26                              |
 
 ---
 
 ## 1) Purpose
 
-This document serves as the formal execution authorization gate for the `platform-admin` module. Implementation MUST NOT begin until this document is approved and status is changed to AUTHORIZED.
+This document serves as the formal execution authorization gate for the `platform-admin` module. Implementation may begin ONLY under this authorization and strictly within the boundaries defined in MODULE_SCOPE_LOCK.md.
 
 ---
 
 ## 2) Authorization Status
 
-**Current Status**: PENDING APPROVAL
+**Current Status**: AUTHORIZED — IMPLEMENTATION (v1.0)
 
-**Authorized Actions**: NONE (governance documents only)
+**Authorized Actions**: Implementation within MODULE_SCOPE_LOCK.md boundaries only
 
-**Forbidden Actions**: All implementation (code, DB, UI, tests, configs)
+**Forbidden Actions**: Any feature/endpoint/table/integration outside MODULE_SCOPE_LOCK.md
 
 ---
 
-## 3) Pre-Authorization Checklist
+## 3) Gate 1 Preconditions (Binding)
 
-Before authorization can be granted, ALL of the following MUST be true:
+ALL of the following MUST be true before starting implementation:
 
 - [ ] MODULE_CHARTER.md is FINAL and approved
 - [ ] MODULE_SCOPE_LOCK.md is FINAL and approved
@@ -53,7 +53,28 @@ Before authorization can be granted, ALL of the following MUST be true:
 
 ---
 
-## 4) Authorization Scope
+## 4) Allowed Implementation Scope (Binding)
+
+**Implementation is authorized ONLY within the boundaries defined in MODULE_SCOPE_LOCK.md.**
+
+**Enforcement Rules**:
+
+- Any endpoint, screen, table, or integration outside MODULE_SCOPE_LOCK.md is FORBIDDEN
+- Core remains a black box; UI never calls Core; tokens remain server-only
+- Any violation triggers immediate STOP and requires new authorization/version
+
+**Mandatory Implementation Checklist**:
+
+- [ ] No scope expansion beyond MODULE_SCOPE_LOCK.md
+- [ ] Mandatory audit logging for all administrative actions
+- [ ] Fail-closed enforcement on tenant mapping ambiguity
+- [ ] Core service token never exposed to UI
+- [ ] RBAC enforcement on every endpoint
+- [ ] All security tests pass before release
+
+---
+
+## 5) Authorization Scope Details
 
 **If authorized, the following actions are ALLOWED**:
 
@@ -78,7 +99,7 @@ Before authorization can be granted, ALL of the following MUST be true:
 
 ---
 
-## 5) Deferred Items (Explicitly Approved)
+## 6) Deferred Items (Explicitly Approved)
 
 The following items are marked TBD in governance documents and are explicitly deferred to post-MVP or require Core team input:
 
@@ -93,13 +114,13 @@ The following items are marked TBD in governance documents and are explicitly de
 **Security**:
 
 - Specific rate limit values (TBD: adjust during testing)
-- Session timeout values (TBD: define before implementation)
+- Session timeout values (TBD: define before Gate 2)
 - Core service token rotation frequency (TBD: align with Core policy)
 - SAST/DAST tool selection (TBD: define before Gate 5)
 
 **Data Retention**:
 
-- Audit log retention period (TBD: define before implementation)
+- Audit log retention period (TBD: define before Gate 2)
 - Audit log archival strategy (TBD: define before implementation)
 
 **Break-Glass**:
@@ -111,36 +132,36 @@ The following items are marked TBD in governance documents and are explicitly de
 
 ---
 
-## 6) Authorization Decision
+## 7) Authorization Decision
 
-**Decision**: PENDING
+**Decision**: AUTHORIZED
 
-**Justification**: Awaiting Governance Authority review of all governance documents.
+**Justification**: All governance documents reviewed and approved. Deferred items explicitly approved for resolution before relevant gates.
 
 **Next Steps**:
 
-1. Governance Authority reviews all governance documents
-2. Governance Authority resolves or approves all deferred items
-3. Governance Authority updates this document status to AUTHORIZED
-4. Governance Authority creates git tag: `suite-platform-admin-governance-v1`
-5. Implementation may begin (Gate 1 passed)
+1. Run git diff to review this authorization change
+2. Commit this authorization document
+3. Create git tag: `suite-platform-admin-gate1-authorization-v1`
+4. Verify all Gate 1 Preconditions (Section 3) are met
+5. Begin implementation ONLY after all preconditions verified
 
 ---
 
-## 7) Authorization Grant (To Be Completed by Governance Authority)
+## 8) Authorization Grant
 
-**Approved By**: **********\_**********  
-**Date**: **********\_**********  
+**Approved By**: \***\*\*\*\*\***\_\***\*\*\*\*\***  
+**Date**: \***\*\*\*\*\***\_\***\*\*\*\*\***  
 **Status**: PENDING APPROVAL  
-**Git Tag**: **********\_**********
+**Git Tag**: \***\*\*\*\*\***\_\***\*\*\*\*\***
 
-**Authorization Statement** (to be completed upon approval):
+**Authorization Statement**:
 
-> "I, as Governance Authority, hereby authorize the implementation of the platform-admin module (v1.0 MVP) in strict accordance with the governance documents listed in Section 3. All deferred items listed in Section 5 are explicitly approved for post-implementation resolution before the relevant gate. Any deviation from the authorized scope requires explicit written approval and version increment."
+> "I, as Governance Authority, hereby authorize the implementation of the platform-admin module (v1.0 MVP) in strict accordance with the governance documents listed in Section 3. All deferred items listed in Section 6 are explicitly approved for post-implementation resolution before the relevant gate. Any deviation from the authorized scope requires explicit written approval and version increment."
 
 ---
 
-## 8) Revocation Protocol
+## 9) Revocation Protocol
 
 **Governance Authority MAY revoke this authorization if**:
 
@@ -160,19 +181,20 @@ The following items are marked TBD in governance documents and are explicitly de
 
 ---
 
-## 9) Acceptance Criteria
+## 10) Acceptance Criteria
 
 This authorization document is considered COMPLETE when:
 
-- [ ] All pre-authorization checklist items are checked
+- [ ] All Gate 1 preconditions are met
 - [ ] All deferred items are explicitly approved
 - [ ] Governance Authority has signed and dated this document
 - [ ] Status is changed to AUTHORIZED
-- [ ] Git tag is created: `suite-platform-admin-governance-v1`
+- [ ] Git tag is created: `suite-platform-admin-gate1-authorization-v1`
 
 ---
 
-## 10) Signature
+## 11) Signature
 
-**Status**: PENDING APPROVAL  
-**Awaiting**: Governance Authority review and authorization
+**Status**: AUTHORIZED — IMPLEMENTATION (v1.0)  
+**Authorized By**: Governance Authority  
+**Date**: 2026-01-26

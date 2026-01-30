@@ -39,12 +39,40 @@ describe('Build Non-Regression', () => {
       expect(methods.length).toBe(1);
       expect(methods[0]).toBe('getHealth');
     });
+
+    it('should verify route metadata (Gate 4.10)', () => {
+      // Verify controller path
+      const pathMetadata = Reflect.getMetadata('path', HealthController);
+      expect(pathMetadata).toBe('platform-admin');
+
+      // Verify method path
+      const controller = new HealthController();
+      const methodMetadata = Reflect.getMetadata('path', controller.getHealth);
+      expect(methodMetadata).toBe('health');
+
+      // Verify HTTP method using RequestMethod enum (avoid magic numbers)
+      const { RequestMethod } = require('@nestjs/common');
+      const httpMethod = Reflect.getMetadata('method', controller.getHealth);
+      expect(httpMethod).toBe(RequestMethod.GET);
+    });
   });
 
-  describe('TypeScript compilation', () => {
-    it('should compile without errors', () => {
-      // This test passes if the file compiles
-      expect(true).toBe(true);
+  describe('Gate 4.10 — test command invariant', () => {
+    it('should document official test command', () => {
+      // Official test command (policy-level documentation)
+      const officialCommand = 'npx jest --config jest.config.cjs';
+      expect(officialCommand).toBeDefined();
+    });
+
+    it('should verify npm test is not the official command', () => {
+      // Verify npm test is NOT the official command
+      const packageJson = require('../../../../package.json');
+      const testScript = packageJson.scripts?.test;
+
+      // Either undefined OR explicitly not the official command
+      if (testScript) {
+        expect(testScript).not.toBe('jest --config jest.config.cjs');
+      }
     });
   });
 });

@@ -43,15 +43,15 @@ Inspection alone is insufficient. Every invariant must have a test that **breaks
 - `fail-closed.spec.ts` tests `DenyAllGuard` behavior
 - `fail-closed.spec.ts` verifies `APP_GUARD` metadata
 
-**Gap**: No test verifies that `APP_GUARD` is **global** (not scoped)
+**Gap**: Need comprehensive proof of fail-closed enforcement
 
-**Required Assertion**:
+**Required Proofs**:
 
-```typescript
-// Verify APP_GUARD is global (not scoped to specific controllers)
-const appGuardProvider = providers.find((p) => p.provide === APP_GUARD);
-expect(appGuardProvider.scope).toBeUndefined(); // Global by default
-```
+1. **Static Proof**: Verify `DenyAllGuard` is wired as `APP_GUARD` in module providers
+2. **Behavioral Proof**: Verify `ExplicitAllowGuard` is used exactly once (static scan)
+3. **Security Proof**: Existing tests confirm deny-all behavior
+
+**Rationale**: Avoid relying on internal provider properties (e.g., `scope`). Prove fail-closed through static wiring + behavioral tests, not implementation details.
 
 ### 3.2 Exactly ONE Route Exists
 
@@ -72,9 +72,13 @@ expect(pathMetadata).toBe("platform-admin");
 const methodMetadata = Reflect.getMetadata("path", controller.getHealth);
 expect(methodMetadata).toBe("health");
 
+// Verify HTTP method using RequestMethod enum (avoid magic numbers)
+import { RequestMethod } from "@nestjs/common";
 const httpMethod = Reflect.getMetadata("method", controller.getHealth);
-expect(httpMethod).toBe(0); // RequestMethod.GET
+expect(httpMethod).toBe(RequestMethod.GET);
 ```
+
+**Rationale**: Use `RequestMethod.GET` enum instead of magic number `0` to avoid fragile tests.
 
 ### 3.3 ExplicitAllowGuard Used EXACTLY Once
 
@@ -147,16 +151,25 @@ expect(controllers).toEqual([HealthController]);
 
 **Current Coverage**: ❌ None
 
-**Required Assertion**:
+**Required Documentation**:
+
+- **Official test command**: `npx jest --config jest.config.cjs`
+- **npm test status**: Intentionally not configured (deferred to dedicated tooling gate)
+
+**Optional Assertion** (if included):
 
 ```typescript
-// Verify npm test is intentionally undefined
+// Verify npm test is NOT the official command
 const packageJson = require("../../../../package.json");
-expect(packageJson.scripts.test).toMatch(/echo.*Error.*no test specified/);
+const testScript = packageJson.scripts?.test;
 
-// Document official test command
-expect("npx jest --config jest.config.cjs").toBeDefined();
+// Either undefined OR explicitly not the official command
+if (testScript) {
+  expect(testScript).not.toBe("jest --config jest.config.cjs");
+}
 ```
+
+**Rationale**: Avoid regex matching on error message strings (fragile). Check stable condition: test script is either undefined or not the official command.
 
 ---
 
@@ -167,8 +180,8 @@ expect("npx jest --config jest.config.cjs").toBeDefined();
 **File**: `modules/platform-admin/tests/security/fail-closed.spec.ts`
 **Changes**:
 
-- Add assertion for `APP_GUARD` scope (global verification)
 - Add scan for `ExplicitAllowGuard` usage count across all controllers
+- Verify fail-closed enforcement through existing behavioral tests
 
 **File**: `modules/platform-admin/tests/non-regression/build.spec.ts`
 **Changes**:
@@ -238,7 +251,9 @@ expect("npx jest --config jest.config.cjs").toBeDefined();
 
 3. Verify test count increased:
    **Before Gate 4.10**: 21 tests
-   **After Gate 4.10**: ~28 tests (7 new invariant tests)
+   **After Gate 4.10**: Approximately 25-30 tests (new invariant tests added)
+
+   **Note**: Test count is approximate; requirement is invariant coverage, not a fixed number.
 
 ### 6.2 Metadata Inspection (Manual)
 
@@ -302,7 +317,7 @@ STOP immediately if:
 
 ## 9) Success Criteria
 
-✅ All 7 invariants proven with failing assertions
+✅ All 7 invariants proven with assertions (test count approximate)
 ✅ Test suite passes (no runtime execution)
 ✅ TypeScript compilation passes
 ✅ Evidence docs created

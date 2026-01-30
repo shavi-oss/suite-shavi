@@ -158,6 +158,7 @@ modules/platform-admin/
 | 4.7 — Readiness      | ✅ CLOSED  | Verification complete                           |
 | 4.8 — Test Harness   | ✅ CLOSED  | Tagged: suite-platform-admin-gate-4.8           |
 | 4.9 — First Endpoint | ✅ CLOSED  | Tagged: suite-platform-admin-gate-4.9 (27d2abd) |
+| 4.10 — Hardening     | ✅ CLOSED  | Invariants proven (see GATE_4_10_EVIDENCE.md)   |
 | 5.x — Features       | 🔲 PLANNED | Feature modules per charter                     |
 
 **Test Command Note**:

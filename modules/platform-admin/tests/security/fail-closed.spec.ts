@@ -66,6 +66,27 @@ describe('Fail-Closed Security', () => {
       expect(metadata).toBeDefined();
       expect(metadata).toContain(ExplicitAllowGuard);
     });
+
+    it('should use ExplicitAllowGuard EXACTLY once across all controllers (Gate 4.10)', () => {
+      // Scan all controllers for ExplicitAllowGuard usage
+      const controllers = Reflect.getMetadata('controllers', PlatformAdminModule) || [];
+      let guardUsageCount = 0;
+
+      controllers.forEach((ControllerClass: any) => {
+        const instance = new ControllerClass();
+        const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(instance))
+          .filter(name => name !== 'constructor');
+        
+        methods.forEach(method => {
+          const guards = Reflect.getMetadata('__guards__', instance[method]) || [];
+          if (guards.includes(ExplicitAllowGuard)) {
+            guardUsageCount++;
+          }
+        });
+      });
+
+      expect(guardUsageCount).toBe(1); // EXACTLY one usage
+    });
   });
 });
 

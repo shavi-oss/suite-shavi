@@ -148,17 +148,22 @@ modules/platform-admin/
 
 ## 5) Readiness Gates
 
-| Gate                 | Status     | Readiness                          |
-| -------------------- | ---------- | ---------------------------------- |
-| 4.1 — Skeleton       | ✅ CLOSED  | Module structure created           |
-| 4.2 — Contracts      | ✅ CLOSED  | Core integration contracts defined |
-| 4.3 — Governance     | ✅ CLOSED  | Module governance complete         |
-| 4.5 — Fail-Closed    | ✅ CLOSED  | DenyAllGuard wired as APP_GUARD    |
-| 4.6 — Verification   | ✅ CLOSED  | TypeScript compilation passes      |
-| 4.7 — Readiness      | ✅ CLOSED  | Verification complete              |
-| 4.8 — Test Harness   | 🔲 PLANNED | Test framework + unit tests        |
-| 4.9 — First Endpoint | 🔲 PLANNED | Opt-in route with explicit guard   |
-| 5.x — Features       | 🔲 PLANNED | Feature modules per charter        |
+| Gate                 | Status     | Readiness                                       |
+| -------------------- | ---------- | ----------------------------------------------- |
+| 4.1 — Skeleton       | ✅ CLOSED  | Module structure created                        |
+| 4.2 — Contracts      | ✅ CLOSED  | Core integration contracts defined              |
+| 4.3 — Governance     | ✅ CLOSED  | Module governance complete                      |
+| 4.5 — Fail-Closed    | ✅ CLOSED  | DenyAllGuard wired as APP_GUARD                 |
+| 4.6 — Verification   | ✅ CLOSED  | TypeScript compilation passes                   |
+| 4.7 — Readiness      | ✅ CLOSED  | Verification complete                           |
+| 4.8 — Test Harness   | ✅ CLOSED  | Tagged: suite-platform-admin-gate-4.8           |
+| 4.9 — First Endpoint | ✅ CLOSED  | Tagged: suite-platform-admin-gate-4.9 (27d2abd) |
+| 5.x — Features       | 🔲 PLANNED | Feature modules per charter                     |
+
+**Test Command Note**:
+
+- Current test suite: `npx jest --config jest.config.cjs`
+- `npm test` intentionally not configured (to be handled in future dedicated Gate)
 
 ---
 

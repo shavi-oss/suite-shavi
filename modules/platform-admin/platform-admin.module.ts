@@ -12,14 +12,18 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { DenyAllGuard } from './guards';
 import { HealthController } from './controllers';
+import { PrismaModule } from './src/db/prisma.module';
+import { OrganizationRepository } from './src/repositories/organization.repository';
 
 @Module({
+  imports: [PrismaModule],
   controllers: [HealthController],
   providers: [
     {
       provide: APP_GUARD,
       useClass: DenyAllGuard,
     },
+    OrganizationRepository,
   ],
 })
 export class PlatformAdminModule {}

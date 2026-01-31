@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../db/prisma.service';
 import { Organization, Prisma } from '@prisma/client';
+import { enforcePolicy } from './repository.guard';
 
 @Injectable()
 export class OrganizationRepository {
@@ -11,10 +12,12 @@ export class OrganizationRepository {
   }
 
   async findAll(): Promise<Organization[]> {
+    enforcePolicy('organization', 'read:list');
     return this.prisma.organization.findMany();
   }
 
   async findById(id: string): Promise<Organization | null> {
+    enforcePolicy('organization', 'read:byId');
     return this.prisma.organization.findUnique({ where: { id } });
   }
 

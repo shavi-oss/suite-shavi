@@ -68,13 +68,17 @@ This document defines the command-level contract for Suite `platform-admin` modu
 
 **TODO (BLOCKED)**:
 
-- [ ] Define exact Core API endpoint (e.g., `GET /api/v1/organizations/:coreOrgId`)
+- [x] Exact Core API endpoint confirmed: `GET /api/v1/organizations/:id` (per Core Contract v1 Extract line 182)
 - [ ] Confirm response schema from Core team
 - [ ] Confirm timeout value (default: 10s for read)
 
 ---
 
 ### 2.2 PublishTemplate
+
+> [!WARNING]
+> **DEFERRED IN CORE V1** — Template publish endpoint does NOT exist in Core v1.  
+> This command contract is catalog-only. DO NOT implement until Core v2.
 
 **Intent**: Publish a predefined workflow template to Core for a specific organization.
 
@@ -133,21 +137,30 @@ This document defines the command-level contract for Suite `platform-admin` modu
 
 ### 3.1 Tenant Context Propagation
 
-**MUST**: Every command MUST include tenant context (`coreOrgId`) when org-scoped.
+**MUST**: Every command MUST include tenant context (`coreOrgId`).
 
-**Mechanism** (TBD):
+**Mechanism** (CONFIRMED from Core v1):
 
-- Option 1: `X-Organization-Id: <coreOrgId>` header
-- Option 2: JWT claim in Core service token
-- Option 3: Query parameter `?organizationId=<coreOrgId>`
+- **JWT Claim**: `organizationId` (in JWT payload)
+- Core extracts `organizationId` from JWT via `JwtStrategy`
+- Core sets CLS context: `orgId`, `userId`
 
-**TODO (BLOCKED)**:
+**NOT USED** (confirmed NOT in Core v1):
 
-- [ ] Confirm tenant context propagation mechanism with Core team
+- ❌ `X-Organization-Id` header
+- ❌ `X-Tenant-Id` header
+- ❌ Query parameter `?organizationId=`
+
+**Source**: Core Contract v1 Extract, Section D.2
+
+**Tenant context is JWT claim organizationId only. No invented tenant headers.**
 
 ---
 
 ### 3.2 Correlation ID Propagation
+
+> [!IMPORTANT]
+> **Correlation is Suite-only. Do not depend on Core echo/logging.**
 
 **MUST**: Every command MUST include correlation ID for tracing.
 
@@ -157,25 +170,34 @@ This document defines the command-level contract for Suite `platform-admin` modu
 - BFF generates correlation ID if not provided by UI
 - BFF includes correlation ID in all log entries
 
-**TODO (BLOCKED)**:
+**Core v1 Reality**:
 
-- [ ] Confirm Core's support for `X-Correlation-Id` header
+- Core v1 does NOT have correlation ID middleware/interceptor
+- Core echo/logging of correlation ID is NOT GUARANTEED
+- Correlation ID is for Suite-side tracing only
+
+**Source**: Core Contract v1 Extract, Section D.4 (NOT FOUND in Core source)
 
 ---
 
 ### 3.3 Authentication
 
-**MUST**: Every command MUST include Core service token.
+> [!WARNING]
+> **Service-to-Service Authentication: NOT AVAILABLE in Core v1**
 
-**Mechanism**:
+**Core v1 Reality**:
 
-- Header: `Authorization: Bearer <core-service-token>`
-- Token is server-only (NEVER exposed to UI)
-- Token is obtained via Core authentication endpoint (TBD)
+- Core v1 uses JWT-based authentication for user-scoped operations
+- No service-token contract exists in Core v1
+- No OAuth2 client credentials flow in Core v1
 
-**TODO (BLOCKED)**:
+**Authentication Mechanism**:
 
-- [ ] Define Core authentication endpoint and flow
+- Suite uses JWT Bearer tokens issued to users
+- JWT contains claims: `sub` (user ID), `email`, `organizationId`
+- Suite includes JWT in `Authorization: Bearer <jwt-token>` header for Core API calls
+
+**Service-to-Service Auth**: DEFERRED until Core v2
 
 ---
 

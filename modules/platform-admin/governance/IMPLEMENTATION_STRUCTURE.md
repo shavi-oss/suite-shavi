@@ -34,9 +34,9 @@ This structure enforces the following governance objectives:
 
 **Token Separation**:
 
-- Core service token confined to adapter directory
-- No token propagation paths from UI to Core
-- Server-only token handling enforced by structure
+- User-Scoped JWT ONLY.
+- Service Tokens **NOT AVAILABLE** in Core v1.
+- No Core service token handling.
 
 **Mapping Enforcement**:
 
@@ -116,7 +116,7 @@ Structure serves as a **governance control**, not a code organization convenienc
 
 **Owned Responsibilities**:
 
-- Core service token acquisition and storage (server-only)
+- User-Scoped JWT propagation only (No Service Tokens)
 - Core API request construction (headers, body, timeout)
 - Correlation ID propagation (`X-Correlation-Id` header)
 - Idempotency key generation and inclusion (`Idempotency-Key` header)
@@ -144,6 +144,7 @@ Structure serves as a **governance control**, not a code organization convenienc
 **Forbidden**:
 
 - Core database access
+- Service Tokens (NOT AVAILABLE)
 - Shared database access
 - Direct SQL execution without repository abstraction
 - Audit log updates or deletes
@@ -160,7 +161,6 @@ modules/platform-admin/
 │   ├── adapters/
 │   │   └── core/
 │   │       ├── core-integration.adapter.ts
-│   │       ├── core-token.service.ts
 │   │       └── core-error.mapper.ts
 │   │
 │   ├── domain/
@@ -236,7 +236,7 @@ modules/platform-admin/
 
 **adapters/core/**:
 
-- Core service token lifecycle (acquire, refresh, store)
+- User-Scoped JWT propagation (Bearer token)
 - Core API request execution (timeout, retry, idempotency)
 - Correlation ID propagation to Core
 - Core error mapping to Suite error types
@@ -422,10 +422,7 @@ The following structural patterns are FORBIDDEN and trigger STOP:
 
 **FORBIDDEN**:
 
-- Core service token stored outside `adapters/core/`
-- Core service token passed as parameter to domain services
-- Core service token included in error messages or logs
-- Core service token exposed via public methods
+- Attempting to use Service Tokens (feature does not exist)
 
 **STOP Trigger**: Any reference to Core service token outside adapter directory.
 
@@ -503,3 +500,10 @@ The following structural patterns are FORBIDDEN and trigger STOP:
 **Prepared By**: Principal Software Architect & Governance Authority  
 **Date**: 2026-01-27  
 **Status**: DRAFT — GATE 3 STRUCTURE
+
+---
+
+## Changelog
+
+- **2026-02-02**: Removed residual Core v2 assumptions (core-token.service.ts file reference from proposed structure).
+- **2026-02-02**: Aligned strictly to Core Contract v1 + Gate 5.3A Decision A.

@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | MODULE_DATA_OWNERSHIP                   |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | FINAL — BINDING DATA OWNERSHIP          |
+| Status         | FINAL — GATE 5.3A ALIGNED               |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-01-26                              |
+| Effective Date | 2026-02-02                              |
 
 ---
 
@@ -306,4 +306,11 @@ The following changes are FORBIDDEN without escalation:
 
 **Approved By**: Governance Authority  
 **Date**: 2026-01-26  
-**Status**: FINAL — BINDING DATA OWNERSHIP
+**Status**: FINAL — GATE 5.3A ALIGNED
+
+---
+
+## 12) Changelog (Gate 5.3A)
+
+- **UPDATED**: Section 3.2 to mark Template Data access as NONE/DEFERRED.
+- **UPDATED**: Document status to GATE 5.3A ALIGNED.

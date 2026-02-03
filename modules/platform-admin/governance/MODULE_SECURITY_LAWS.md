@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | MODULE_SECURITY_LAWS                    |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | FINAL — BINDING SECURITY LAWS           |
+| Status         | FINAL — GATE 5.3A ALIGNED               |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-01-26                              |
+| Effective Date | 2026-02-02                              |
 
 ---
 
@@ -89,11 +89,13 @@ This document establishes module-specific security laws for `platform-admin`. Th
 
 ### 3.5 Core Service Token Protection
 
-**MUST**: Store Core service token server-side only.
+> [!WARNING]
+> **NOT AVAILABLE IN CORE V1**
+> Core Service Tokens do not exist. Authentication is User-Scoped JWT only.
 
-**MUST NOT**: Send token to UI, log it, or include in error messages.
+**MUST**: Use User-Scoped JWT only for Core interactions.
 
-**MUST**: Rotate token per Core policy (TBD).
+**MUST NOT**: Attempt to use or rotate Non-Existent Service Tokens.
 
 ---
 
@@ -117,7 +119,9 @@ This document establishes module-specific security laws for `platform-admin`. Th
 
 **MUST**: Implement rate limiting.
 
-**Limits** (TBD): Read 100/min, Write 10/min, Publish 5/min per user.
+**Limits**: Read 100/min, Write 10/min.
+
+**DEFERRED**: Publish 5/min (Template Publish is NOT AVAILABLE in Core v1).
 
 ### 4.4 Session Management
 
@@ -130,8 +134,6 @@ This document establishes module-specific security laws for `platform-admin`. Th
 **MUST**: Store credentials in env vars or secret store.
 
 **MUST NOT**: Hardcode or commit credentials.
-
-**MUST**: Rotate Core token periodically (TBD).
 
 ---
 
@@ -202,4 +204,13 @@ Forbidden: Weakening RBAC, allowing Core token in UI, removing audit immutabilit
 
 **Approved By**: Governance Authority  
 **Date**: 2026-01-26  
-**Status**: FINAL — BINDING SECURITY LAWS
+**Status**: FINAL — GATE 5.3A ALIGNED
+
+---
+
+## 12) Changelog (Gate 5.3A)
+
+- **UPDATED**: Section 3.5 to mark Core Service Tokens as NOT AVAILABLE.
+- **UPDATED**: Section 4.3 to mark Template Publish limits as DEFERRED.
+- **REMOVED**: Section 4.5 requirement to rotate Core token (Does not exist).
+- **UPDATED**: Document status to GATE 5.3A ALIGNED.

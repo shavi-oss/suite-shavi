@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | CORE_FAILURE_SEMANTICS                  |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | ACTIVE — FAILURE CONTRACT               |
+| Status         | FINAL — GATE 5.3A ALIGNED               |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-01-30                              |
+| Effective Date | 2026-02-02                              |
 
 ---
 
@@ -29,24 +29,26 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ### 2.1 Authentication Errors (401 Unauthorized)
 
-**Meaning**: Core service token is invalid, expired, or missing
+> [!WARNING]
+> **Token Refresh: NOT AVAILABLE in Core v1**
+
+**Meaning**: JWT token is invalid, expired, or missing
 
 **BFF Behavior**:
 
 - **DENY** the request immediately (no retry)
-- Attempt to refresh Core service token (if refresh mechanism is available)
-- If token refresh fails, return safe error to UI
+- Return safe error to UI (no refresh mechanism available in Core v1)
 - Log failure with correlation ID
 
-**Retry Policy**: **NO RETRY** (non-transient error)
+**Retry Policy**: **NO RETRY** (non-transient error, no refresh available)
 
-**Safe Error Message**: `"Service authentication failed. Please try again later."`
+**Safe Error Message**: `"Authentication failed. Please log in again."`
 
 **Observability**:
 
 - Log: `"Core authentication failed (401)"`
 - Log: Correlation ID, endpoint, timestamp
-- **MUST NOT** log: Core service token value
+- **MUST NOT** log: JWT token value
 
 ---
 
@@ -328,12 +330,11 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 - Core API call (endpoint, method, status code, duration)
 - Tenant context (`coreOrgId` when applicable)
 - Error class and retry count
-- Token refresh events (WITHOUT token value)
 - Circuit breaker state changes
 
 **Log Levels**:
 
-- **INFO**: Successful Core API calls, token refresh
+- **INFO**: Successful Core API calls
 - **WARN**: Retries, circuit breaker state changes
 - **ERROR**: Final failures (after retries), authentication/authorization errors
 
@@ -359,7 +360,6 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 - Core API error rate (by error class)
 - Retry count (by operation type)
 - Circuit breaker state duration
-- Token refresh frequency
 
 ---
 
@@ -368,7 +368,7 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 **TODO**: Define alerts for critical failures:
 
 - Core API down (5xx errors persist for >5 minutes)
-- Token refresh failure (repeated 401 errors)
+- Circuit breaker open (for >5 minutes)
 - Circuit breaker open (for >5 minutes)
 - Rate limiting (429 errors persist)
 
@@ -406,4 +406,11 @@ This failure semantics contract is ACTIVE and BINDING when:
 
 **Approved By**: Governance Authority  
 **Date**: 2026-01-30  
-**Status**: ACTIVE — FAILURE CONTRACT
+**Status**: FINAL — GATE 5.3A ALIGNED
+
+---
+
+## 10) Changelog (Gate 5.3A)
+
+- **REMOVED**: Residual references to Token Refresh in Observability, Metrics, and Alerts sections (Feature NOT AVAILABLE).
+- **UPDATED**: Document status to GATE 5.3A ALIGNED.

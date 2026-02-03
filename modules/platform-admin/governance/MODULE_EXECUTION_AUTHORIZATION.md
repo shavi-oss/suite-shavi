@@ -68,7 +68,7 @@ ALL of the following MUST be true before starting implementation:
 - [ ] No scope expansion beyond MODULE_SCOPE_LOCK.md
 - [ ] Mandatory audit logging for all administrative actions
 - [ ] Fail-closed enforcement on tenant mapping ambiguity
-- [ ] Core service token never exposed to UI
+- [ ] Core service token: **NOT AVAILABLE**
 - [ ] RBAC enforcement on every endpoint
 - [ ] All security tests pass before release
 
@@ -91,7 +91,7 @@ ALL of the following MUST be true before starting implementation:
 - Implementing features not listed in MODULE_SCOPE_LOCK.md
 - Calling Core endpoints not authorized in INTEGRATION_CONTRACT_CORE.md
 - Allowing UI → Core direct calls
-- Exposing Core service token to UI
+
 - Weakening fail-closed enforcement
 - Bypassing RBAC or audit logging
 - Skipping security tests
@@ -105,17 +105,17 @@ The following items are marked TBD in governance documents and are explicitly de
 
 **Core Integration**:
 
-- Exact Core endpoint URLs (TBD: requires INTEGRATION_CONTRACT_CORE.md update)
-- Core authentication flow details (TBD: requires Core team input)
-- Tenant context propagation mechanism (TBD: requires Core team confirmation)
-- Correlation ID support in Core (TBD: requires Core team confirmation)
-- Idempotency key support in Core (TBD: requires Core team confirmation)
+- Exact Core endpoint URLs (Template publish: DEFERRED — no endpoint in Core v1)
+- Core authentication flow: User-Scoped JWT only (LOCKED per Core Contract v1)
+- Tenant context: JWT claim `organizationId` only (LOCKED per Core Contract v1)
+- Correlation ID: Suite-only, Core echo NOT GUARANTEED (LOCKED per Core Contract v1)
+- Idempotency key support: TBD (requires Core team confirmation)
 
 **Security**:
 
 - Specific rate limit values (TBD: adjust during testing)
 - Session timeout values (TBD: define before Gate 2)
-- Core service token rotation frequency (TBD: align with Core policy)
+
 - SAST/DAST tool selection (TBD: define before Gate 5)
 
 **Data Retention**:
@@ -198,3 +198,10 @@ This authorization document is considered COMPLETE when:
 **Status**: AUTHORIZED — IMPLEMENTATION (v1.0)  
 **Authorized By**: Governance Authority  
 **Date**: 2026-01-26
+
+---
+
+## Changelog
+
+- **2026-02-02**: Removed residual Core v2 assumptions (TBD confirmations for tenant propagation, correlation support, Core auth flow).
+- **2026-02-02**: Aligned strictly to Core Contract v1 + Gate 5.3A Decision A.

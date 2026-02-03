@@ -31,6 +31,8 @@ This document maps the scope of each gate in the Gate 5.x series, defining:
 
 **Responsibility**: Organization operations (create, list, get, suspend, unsuspend)
 
+**Note**: Gate 5.1 was executed as "DB integration skeleton" (Prisma DI + organization repository + wiring test). Controllers, services, DTOs, and full integration tests were deferred to future gates to maintain incremental delivery and fail-closed enforcement.
+
 **Allowed**:
 
 - Organization controller + routes (GET, POST, PATCH)

@@ -32,9 +32,9 @@ This document defines how the `platform-admin` module integrates with external s
 
 **Bassan.os Core**:
 
-- **Purpose**: Validate Core organizationId, publish templates to Core
+- **Purpose**: Validate Core organizationId. Template Publishing is DEFERRED (NOT AVAILABLE in Core v1). No Core publish call exists in v1.
 - **Integration Method**: BFF → Core API (server-to-server, HTTPS/TLS)
-- **Authentication**: Core-issued service token (server-only, never exposed to UI)
+- **Authentication**: User-Scoped JWT ONLY. (Service Tokens **NOT AVAILABLE** in Core v1).
 
 **No Other External Systems** in MVP.
 
@@ -54,68 +54,90 @@ This document defines how the `platform-admin` module integrates with external s
 
 ## 3) Core Integration Details
 
-### 3.1 Core Endpoints (TBD — Requires INTEGRATION_CONTRACT_CORE.md Update)
+### 3.1 Core Endpoints (Locked to Core Contract v1)
+
+> [!IMPORTANT]
+> **Source**: Core Contract v1 (see `core-contract/CORE_V1_INTEGRATION_LOCK.md`)
 
 **MUST call ONLY these Core endpoints**:
 
 **Organization Validation**:
 
-- **Endpoint**: TBD (e.g., `GET /api/v1/organizations/:coreOrgId`)
+- **Endpoint**: `GET /api/v1/organizations/:id`
 - **Purpose**: Validate that Core organizationId exists before creating mapping
 - **Method**: GET
-- **Headers**: `Authorization: Bearer <core-service-token>`, `X-Correlation-Id: <id>`
+- **Headers**: `Authorization: Bearer <jwt-token>`, `X-Correlation-Id: <id>` (Suite-only, Core echo not guaranteed)
 - **Response**: 200 OK (org exists), 404 Not Found (org does not exist)
 - **Error Handling**: 404 → fail mapping creation, 5xx → retry with backoff
+- **Source**: Confirmed in Core Contract v1 Extract
 
 **Template Publishing**:
 
-- **Endpoint**: TBD (e.g., `POST /api/v1/templates/publish`)
-- **Purpose**: Publish pre-defined template to Core for a specific organization
-- **Method**: POST
-- **Headers**: `Authorization: Bearer <core-service-token>`, `X-Organization-Id: <coreOrgId>`, `X-Correlation-Id: <id>`
-- **Request Body**: TBD (e.g., `{ templateId: string, coreOrgId: string }`)
-- **Response**: 201 Created (success), 400 Bad Request (invalid template), 404 Not Found (org not found)
-- **Error Handling**: 4xx → return safe error to UI, 5xx → retry with backoff
+> [!WARNING]
+> **DEFERRED IN CORE V1** — Template publish endpoint does NOT exist in Core v1.  
+> This capability is DEFERRED until Core v2. DO NOT implement.
 
-**TODO**: Define exact Core endpoint URLs, request/response schemas, and error codes in INTEGRATION_CONTRACT_CORE.md before implementation.
+- **Status**: ❌ DEFERRED (not in Core v1)
+- **Reason**: No template publish controller found in Core v1 source
+- **Future**: May be added in Core v2 (requires new contract lock)
 
-### 3.2 Authentication Flow
+### 3.2 Authentication Flow (Core Contract v1)
 
-**How BFF Obtains Core Service Token**:
+> [!WARNING]
+> **Service-to-Service Authentication: NOT AVAILABLE in Core v1**
 
-1. BFF starts up and reads Core service credentials from environment variables or secret store
-2. BFF calls Core authentication endpoint (TBD: e.g., `POST /auth/service-token`) with credentials
-3. Core returns service token (JWT) with expiry
-4. BFF stores token in memory (server-side only, never exposed to UI)
-5. BFF includes token in `Authorization: Bearer <token>` header for all Core API calls
-6. BFF monitors token expiry and refreshes proactively before expiry
+**Core v1 Reality**:
 
-**TODO**: Define exact Core authentication endpoint, credentials format, token TTL, and refresh mechanism.
+- Core v1 uses JWT-based authentication for user-scoped operations
+- No service-token contract exists in Core v1
+- No OAuth2 client credentials flow in Core v1
+- No token refresh mechanism in Core v1
 
-### 3.3 Tenant Context Propagation
+**Authentication Mechanism**:
 
-**MUST**: BFF MUST include tenant context (coreOrgId) in every Core API call that is org-scoped.
+- Suite uses JWT Bearer tokens issued to users
+- JWT contains claims: `sub` (user ID), `email`, `organizationId`
+- Suite includes JWT in `Authorization: Bearer <jwt-token>` header for Core API calls
+- 401 responses from Core result in fail-closed behavior (no refresh available)
 
-**Mechanism** (TBD):
+**Service-to-Service Auth**: DEFERRED until Core v2
 
-- Option 1: `X-Organization-Id: <coreOrgId>` header
-- Option 2: JWT claim in Core service token
-- Option 3: Query parameter `?organizationId=<coreOrgId>`
+### 3.3 Tenant Context Propagation (Core Contract v1)
 
-**TODO**: Confirm with Core team which mechanism is required.
+**MUST**: Suite MUST include tenant context in every Core API call that is org-scoped.
 
-### 3.4 Correlation ID Propagation
+**Mechanism** (CONFIRMED from Core v1):
 
-**MUST**: BFF MUST generate a unique correlation ID for every request from UI and propagate it to Core.
+- **JWT Claim**: `organizationId` (in JWT payload)
+- Core extracts `organizationId` from JWT via `JwtStrategy`
+- Core sets CLS context: `orgId`, `userId`
 
-**Mechanism**:
+**NOT USED** (confirmed NOT in Core v1):
 
-- UI → BFF: Generate correlation ID in BFF (or accept from UI if provided)
-- BFF → Core: Include `X-Correlation-Id: <id>` header in all Core API calls
-- BFF logs: Include correlation ID in all log entries
-- Core logs: Core SHOULD include correlation ID in its logs (if supported)
+- ❌ `X-Organization-Id` header
+- ❌ `X-Tenant-Id` header
+- ❌ Query parameter `?organizationId=`
 
-**TODO**: Confirm Core's support for `X-Correlation-Id` header.
+**Source**: Core Contract v1 Extract, Section D.2
+
+### 3.4 Correlation ID Propagation (Suite-Only)
+
+> [!IMPORTANT]
+> **Correlation ID is SUITE-ONLY** — Core v1 does NOT have correlation ID middleware.
+
+**Suite Implementation**:
+
+- UI → BFF: Generate correlation ID in BFF (UUID v4)
+- BFF → Core: Include `X-Correlation-Id: <id>` header in outbound requests
+- BFF logs: Include correlation ID in ALL Suite log entries
+
+**Core v1 Reality**:
+
+- Core v1 does NOT have correlation ID middleware/interceptor
+- Core echo/logging of correlation ID is NOT GUARANTEED
+- Correlation ID is for Suite-side tracing only
+
+**Source**: Core Contract v1 Extract, Section D.4 (NOT FOUND in Core source)
 
 ---
 
@@ -159,7 +181,9 @@ This document defines how the `platform-admin` module integrates with external s
 
 ### 4.4 Idempotency
 
-**MUST**: BFF MUST ensure idempotency for non-idempotent Core API calls (e.g., template publishing).
+**MUST**: BFF MUST ensure idempotency for non-idempotent Core API calls.
+
+Note: Template Publishing is DEFERRED in Core v1, so idempotency requirements for publish are N/A in v1.
 
 **Mechanism** (TBD):
 
@@ -174,7 +198,7 @@ This document defines how the `platform-admin` module integrates with external s
 
 ### 5.1 Missing Org Mapping
 
-**Scenario**: User attempts to publish template to Core, but Suite org has no coreOrgId mapping.
+**Scenario**: User submits a publish request (DEFERRED) but Suite org has no coreOrgId mapping. No Core call exists in v1.
 
 **Action**:
 
@@ -217,7 +241,7 @@ This document defines how the `platform-admin` module integrates with external s
 - Correlation ID
 - Tenant context (coreOrgId, if applicable)
 - Errors and retries
-- Token refresh events (without logging token value)
+- N/A (token refresh NOT AVAILABLE in Core v1)
 
 **MUST NOT Log**:
 
@@ -231,7 +255,7 @@ This document defines how the `platform-admin` module integrates with external s
 
 ### 6.3 Alerts (TBD)
 
-**TODO**: Define alerts for critical failures (e.g., Core API down, token refresh failure).
+**TODO**: Define alerts for critical failures (e.g., Core API down). Note: Token refresh is NOT AVAILABLE in Core v1.
 
 ---
 
@@ -239,19 +263,18 @@ This document defines how the `platform-admin` module integrates with external s
 
 ### 7.1 Core Service Token Handling
 
-**MUST**:
+> [!WARNING]
+> **NOT AVAILABLE IN CORE V1**
+> Core Service Tokens do not exist. Authentication is User-Scoped JWT only.
 
-- Store Core service token in server-side environment (environment variable, secret store)
-- Include token in `Authorization` header for all Core API calls
-- Rotate token according to Core's policy (TBD)
-- Never expose token to UI or client-side code
-- Never log token value
+- **Status**: **NOT AVAILABLE**.
+- **Action**: Do NOT attempt to obtain or store service tokens.
 
 **MUST NOT**:
 
 - Store token in UI or browser storage
 - Include token in URLs or query parameters
-- Forward UI token to Core
+- Forward an unvalidated client token to Core (MUST forward only a validated user-scoped JWT issued/verified by Suite auth).
 
 ### 7.2 TLS/HTTPS
 
@@ -290,31 +313,54 @@ In rare cases, an org mapping may need to be corrected (e.g., wrong coreOrgId li
 
 ## 9) Stop Rules
 
+> [!CAUTION]
+> **Core Contract v1 Alignment** — The following stop rules enforce Core v1 reality.
+
 Execution MUST STOP IMMEDIATELY if any of the following occurs:
 
-- BFF calls Core endpoint not listed in this plan (or INTEGRATION_CONTRACT_CORE.md)
+**Core Endpoint Violations**:
+
+- BFF calls Core endpoint not listed in Core Contract v1 (or `core-contract/CORE_V1_INTEGRATION_LOCK.md`)
+- BFF attempts to call template publish endpoint (DEFERRED in Core v1)
 - BFF accesses Core DB directly
+
+**Authentication Violations**:
+
 - Core service token is exposed to UI or logged
+- BFF attempts to implement service-token acquisition (NOT AVAILABLE in Core v1)
+- BFF attempts to implement token refresh mechanism (NOT AVAILABLE in Core v1)
 - BFF forwards UI token to Core
+
+**Tenant Context Violations**:
+
 - Org mapping ambiguity is handled with fail-open behavior
-- BFF proceeds with Core API call without tenant context (coreOrgId) when required
+- BFF proceeds with Core API call without tenant context (organizationId) when required
+- BFF invents tenant headers not in Core v1 (e.g., `X-Organization-Id`, `X-Tenant-Id`)
+
+**Gate 5.3A Specific Stop Rules**:
+
+- Template publish is DEFERRED until Core v2. Any attempt to implement template publish in Gate 5.3 or later is a STOP condition.
+- Service-to-service authentication is NOT AVAILABLE in Core v1. Any attempt to implement service-token flows is a STOP condition.
+- Correlation ID echo from Core is NOT GUARANTEED. Any dependency on Core logging correlation IDs is a STOP condition.
 
 **Action on STOP**: Halt all work, document the violation, escalate to Governance Authority.
 
 ---
 
+**Gate 5.3A Lock Scope**: This document locks Core v1 integration contract items only (authorized endpoints, auth model, tenant propagation, correlation handling, and explicit DEFERRED items). Any remaining "future implementation" items must be tracked in later gates and MUST NOT introduce Core assumptions.
+
 ## 10) Acceptance Criteria
 
 This integration plan is considered ACTIVE and BINDING when ALL of the following are true:
 
-- [ ] All Core endpoints to be called are explicitly listed (or marked TBD with reference to contract)
-- [ ] Authentication flow for obtaining Core service token is documented
-- [ ] Tenant context propagation mechanism is defined (or marked TBD)
+- [ ] All Core endpoints to be called are explicitly listed and locked to Core Contract v1. No TBD endpoints permitted.
+- [ ] Authentication flow uses User-Scoped JWT only
+- [ ] Tenant context propagation is locked to JWT claim organizationId (Core v1). No tenant headers/query params permitted.
 - [ ] Correlation ID propagation is documented
 - [ ] Retry policy, timeouts, and circuit breaker principles are defined
-- [ ] Idempotency handling is documented (or marked TBD)
+- [ ] Idempotency is N/A for authorized read-only Core endpoint(s); publish idempotency is DEFERRED (Core v2 only).
 - [ ] Fail-closed enforcement rules are explicit
-- [ ] Observability requirements (logging, metrics, alerts) are defined (or marked TBD)
+- [ ] Observability is defined: correlation ID is Suite-only; Core echo/logging is not guaranteed; Suite logs include correlation ID on all Core calls.
 - [ ] Security requirements (token handling, TLS) are documented
 - [ ] Break-glass policy for org mapping changes is documented
 - [ ] Stop rules are explicit and enforceable
@@ -340,7 +386,7 @@ The following changes are FORBIDDEN without escalation:
 
 - Adding Core endpoints not authorized in INTEGRATION_CONTRACT_CORE.md
 - Allowing UI → Core direct calls
-- Exposing Core service token to UI
+- Attempting to use Service Tokens (feature does not exist)
 - Weakening fail-closed enforcement
 
 ---
@@ -350,3 +396,12 @@ The following changes are FORBIDDEN without escalation:
 **Approved By**: Governance Authority  
 **Date**: 2026-01-26  
 **Status**: FINAL — BINDING INTEGRATION PLAN
+
+---
+
+## Changelog
+
+- **2026-02-02**: Removed residual Core v2 assumptions (token refresh events in observability, token refresh failure alerts).
+- **2026-02-02**: Aligned strictly to Core Contract v1 + Gate 5.3A Decision A.
+- Removed remaining Template Publish-to-Core implications (Core v1 has no publish endpoint).
+- Marked publish idempotency references as N/A (DEFERRED to Core v2).

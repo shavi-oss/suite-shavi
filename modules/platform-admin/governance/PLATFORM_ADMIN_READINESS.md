@@ -111,7 +111,7 @@ modules/platform-admin/
 ✅ **Organization Management**: CRUD for Suite orgs  
 ✅ **Org Mapping**: Suite ↔ Core org alignment  
 ✅ **Internal Users**: Platform admin user management  
-✅ **Template Publishing**: Trigger Core template publish  
+✅ **Template Publishing**: DEFERRED (Core v2 contract lock required). Suite may record publish requests only (no Core call in v1).  
 ✅ **Audit Logging**: Immutable audit trail  
 ✅ **RBAC**: Role-based access control
 
@@ -142,7 +142,7 @@ modules/platform-admin/
 **Authentication**: Internal user auth (TBD)  
 **Authorization**: RBAC + fail-closed guards  
 **Data Exposure**: Minimal (only necessary data per contract)  
-**Secrets Management**: Core service token (server-only, never exposed)
+**Secrets Management**: None (User-Scoped JWT only)
 
 ---
 
@@ -160,6 +160,8 @@ modules/platform-admin/
 | 4.9 — First Endpoint | ✅ CLOSED  | Tagged: suite-platform-admin-gate-4.9 (27d2abd) |
 | 4.10 — Hardening     | ✅ CLOSED  | Invariants proven (see GATE_4_10_EVIDENCE.md)   |
 | 5.0.1 — DB Tooling   | ✅ CLOSED  | Prisma 6.19.2 installed, migration applied      |
+| 5.1 — DB Integration | ✅ CLOSED  | Tagged: suite-platform-admin-gate-5.1           |
+| 5.2 — Policy Layer   | ✅ CLOSED  | Tagged: suite-platform-admin-gate-5.2           |
 | 5.x — Features       | 🔲 PLANNED | Feature modules per charter                     |
 
 **Test Command Note**:

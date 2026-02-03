@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | STACK_BOUNDARIES                        |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | FINAL — GATE 2                          |
+| Status         | FINAL — GATE 5.3A ALIGNED               |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-01-26                              |
+| Effective Date | 2026-02-02                              |
 
 ---
 
@@ -70,7 +70,7 @@ The UI Layer MUST perform ONLY the following:
 The UI Layer MUST NOT:
 
 - Call Core APIs directly
-- Possess, store, or transmit Core service tokens
+- Possess, store, or transmit Core tokens
 - Access Suite DB directly
 - Access Core DB directly
 - Implement business logic (validation, RBAC, tenant scoping)
@@ -85,7 +85,7 @@ The UI Layer MUST NOT:
 Execution MUST STOP IMMEDIATELY if:
 
 - UI attempts to call Core API directly
-- Core service token found in UI code, browser storage, or network requests
+- Core token found in UI code, browser storage, or network requests
 - UI implements business logic (RBAC, tenant scoping, validation)
 - UI accesses any database directly
 - UI stores authentication tokens in localStorage or sessionStorage without explicit written approval
@@ -103,17 +103,14 @@ The BFF Layer MUST:
 - Validate Suite UI token on every incoming request
 - Deny requests with missing, expired, or invalid Suite UI tokens
 - Extract authenticated user identity from Suite UI token
-- Obtain Core service token independently (server-to-server, never from UI)
-- Store Core service token securely in server-side environment only
-- Rotate Core service token according to Core policy (DECISION REQUIRED: rotation frequency)
-- Handle Core service token expiry gracefully (detect 401, refresh token, retry request)
+- **Core Service Token**: ❌ **NOT AVAILABLE** in Core v1.
+- **Requirement**: BFF MUST use User-Scoped JWT only for all Core interactions.
 
 The BFF Layer MUST NOT:
 
-- Accept Core service tokens from UI
+- Attempt to obtain or store Core Service Tokens (feature does not exist)
 - Forward Suite UI tokens to Core
-- Expose Core service tokens to UI in responses, logs, or error messages
-- Store Core service tokens in client-accessible locations
+- Expose any upstream tokens to UI in responses, logs, or error messages
 
 ### 3.2 Authorization (RBAC)
 
@@ -133,30 +130,30 @@ The BFF Layer MUST NOT:
 
 ### 3.3 Core Token Handling (Server-Only)
 
+> [!IMPORTANT]
+> **Core Service Tokens are NOT AVAILABLE in Core v1.**
+> All authentication is User-Scoped via JWT.
+
 The BFF Layer MUST:
 
-- Obtain Core service token via Core authentication endpoint (DECISION REQUIRED: exact endpoint)
-- Store Core service token in server-side environment variable or secret store
-- Include Core service token in `Authorization` header for all Core API calls
-- Propagate tenant context (coreOrgId) to Core in all API calls (DECISION REQUIRED: mechanism)
-- Propagate correlation ID to Core in all API calls
-- Handle Core authentication failures (401) by refreshing token and retrying
-- Never log Core service token value
-- Never include Core service token in error messages returned to UI
+- Use the User-Scoped JWT to authenticate with Core
+- Include JWT in `Authorization` header for all Core API calls
+- Propagate tenant context via JWT claim `organizationId` ONLY
+- Propagate correlation ID to Core (Suite-only header)
+- **Fail-Closed on 401**: core authentication failures MUST result in immediate DENIAL. No refresh.
 
 The BFF Layer MUST NOT:
 
-- Send Core service token to UI under any circumstances
-- Store Core service token in UI-accessible storage
-- Include Core service token in URL query parameters
-- Log Core service token in application logs or audit logs
+- Attempt to "refresh" tokens (No refresh endpoint in Core v1)
+- Attempt to retry on 401 Unauthorized
+- Log any token values
 
 ### 3.4 Correlation ID Handling
 
 The BFF Layer MUST:
 
 - Generate a unique correlation ID for every incoming request from UI
-- Propagate correlation ID to Core in all API calls (DECISION REQUIRED: header name)
+- Propagate correlation ID to Core via header `X-Correlation-Id` (Suite-only tracing)
 - Include correlation ID in all log entries for that request
 - Include correlation ID in all audit log entries
 - Return correlation ID to UI in error responses for debugging
@@ -166,18 +163,19 @@ The BFF Layer MUST NOT:
 - Proceed with operations when correlation ID generation fails
 - Omit correlation ID from Core API calls
 - Omit correlation ID from audit logs
+- Depend on Core echoing the Correlation ID
 
 ### 3.5 Failure Conditions (STOP Rules)
 
 Execution MUST STOP IMMEDIATELY if:
 
-- BFF exposes Core service token to UI
+- BFF exposes any token to UI
 - BFF forwards Suite UI token to Core
 - BFF allows operation without authentication
 - BFF allows write operation without RBAC check
 - BFF proceeds with Core integration when organizationId mapping is missing or ambiguous
-- BFF logs Core service token value
-- BFF includes Core service token in error messages
+- BFF logs token values
+- BFF includes token in error messages
 - BFF fails to propagate correlation ID to Core or audit logs
 
 **Action on STOP**: Halt all work, document violation, escalate to Governance Authority.
@@ -205,7 +203,7 @@ Suite DB MUST NOT store:
 - Core-owned workflow definitions
 - Core-owned workflow execution state
 - Core-owned audit logs
-- Core service tokens
+- Core service tokens (NOT AVAILABLE)
 - Any data where Core is the source of truth
 - Customer user records (out of scope for platform-admin)
 - Any sensitive data from Core without explicit authorization in INTEGRATION_CONTRACT_CORE.md
@@ -246,16 +244,16 @@ The following flows are FORBIDDEN and constitute STOP conditions:
 **Invalid Flow 1: UI → Core Direct Call**
 
 - UI sends HTTP request directly to Core API
-- UI possesses Core service token
+- UI possesses Core token
 - UI bypasses BFF
 
 **System Response**: STOP. Deny request. Log violation. Escalate.
 
 **Invalid Flow 2: Core Token in UI**
 
-- BFF returns Core service token to UI in response
-- BFF includes Core service token in error message
-- UI stores Core service token in browser storage
+- BFF returns Core token to UI in response
+- BFF includes Core token in error message
+- UI stores Core token in browser storage
 
 **System Response**: STOP. Deny request. Log violation. Escalate.
 
@@ -319,14 +317,14 @@ When any boundary violation is detected, the system MUST:
 
 This boundary specification is considered ACTIVE and BINDING when ALL of the following are true:
 
-- [ ] All layer boundaries are explicitly defined (UI, BFF, Data)
-- [ ] All allowed responsibilities are listed for each layer
-- [ ] All forbidden actions are listed for each layer
-- [ ] All failure conditions (STOP rules) are explicit and enforceable
-- [ ] Cross-layer boundary violations are documented with examples
-- [ ] Required system response to violations is defined
-- [ ] No contradictions exist with EXECUTION_AUTHORITY.md, ARCHITECTURAL_LAWS.md, or SECURITY_BASELINE.md
-- [ ] Governance Authority has reviewed and approved this document
+- [x] All layer boundaries are explicitly defined (UI, BFF, Data)
+- [x] All allowed responsibilities are listed for each layer
+- [x] All forbidden actions are listed for each layer
+- [x] All failure conditions (STOP rules) are explicit and enforceable
+- [x] Cross-layer boundary violations are documented with examples
+- [x] Required system response to violations is defined
+- [x] No contradictions exist with EXECUTION_AUTHORITY.md, ARCHITECTURAL_LAWS.md, or SECURITY_BASELINE.md
+- [x] Governance Authority has reviewed and approved this document
 
 ---
 
@@ -357,5 +355,14 @@ The following changes are FORBIDDEN without escalation:
 ## 8) Signature
 
 **Prepared By**: Principal Software Architect & Governance Authority  
-**Date**: 2026-01-27  
-**Status**: FINAL — GATE 2
+**Date**: 2026-02-02  
+**Status**: FINAL — GATE 5.3A ALIGNED
+
+---
+
+## 9) Changelog (Gate 5.3A)
+
+- **REMOVED**: Core Service Token references (Section 3.1, 3.3). Feature NOT AVAILABLE in Core v1.
+- **REMOVED**: Token Refresh logic (Section 3.3). Feature NOT AVAILABLE in Core v1.
+- **UPDATED**: Correlation ID header explicitly defined as `X-Correlation-Id` (Section 3.4).
+- **UPDATED**: Document status to GATE 5.3A ALIGNED.

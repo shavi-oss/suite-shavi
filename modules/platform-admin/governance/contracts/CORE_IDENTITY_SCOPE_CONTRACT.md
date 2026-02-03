@@ -119,18 +119,21 @@ This document defines the identity and scope contract for Suite `platform-admin`
 **BFF → Core**:
 
 - BFF resolves `suiteOrgId` → `coreOrgId` via mapping table
-- BFF includes `coreOrgId` in Core API request
+- BFF includes `coreOrgId` in JWT claim (Core extracts via JwtStrategy)
 
-**Mechanism** (TBD):
+**Mechanism** (CONFIRMED from Core v1):
 
-- **Option 1**: `X-Organization-Id: <coreOrgId>` header
-- **Option 2**: JWT claim in Core service token (if Core supports org-scoped tokens)
-- **Option 3**: Query parameter `?organizationId=<coreOrgId>`
+- **JWT Claim**: `organizationId` (in JWT payload)
+- Core extracts `organizationId` from JWT via `JwtStrategy`
+- Core sets CLS context: `orgId`, `userId`
 
-**TODO (BLOCKED)**:
+**NOT USED** (confirmed NOT in Core v1):
 
-- [ ] Confirm tenant context propagation mechanism with Core team
-- [ ] Define exact header name, JWT claim, or query parameter
+- ❌ `X-Organization-Id` header
+- ❌ `X-Tenant-Id` header
+- ❌ Query parameter `?organizationId=`
+
+**Source**: Core Contract v1 Extract, Section D.2
 
 ---
 
@@ -154,6 +157,9 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ### 4.1 Correlation ID Generation
 
+> [!IMPORTANT]
+> **Correlation ID is SUITE-ONLY** — Core v1 does NOT have correlation ID middleware.
+
 **UI → BFF**:
 
 - BFF generates UUID v4 correlation ID for every request
@@ -165,15 +171,13 @@ This document defines the identity and scope contract for Suite `platform-admin`
 - BFF includes correlation ID in `X-Correlation-Id` header for ALL Core API calls
 - BFF logs correlation ID in ALL log entries for that request
 
-**Core → BFF**:
+**Core v1 Reality**:
 
-- Core SHOULD include correlation ID in response headers (if supported)
-- Core SHOULD log correlation ID for debugging (if supported)
+- Core v1 does NOT have correlation ID middleware/interceptor
+- Core echo/logging of correlation ID is NOT GUARANTEED
+- Correlation ID is for Suite-side tracing only
 
-**TODO (BLOCKED)**:
-
-- [ ] Confirm Core's support for `X-Correlation-Id` header
-- [ ] Confirm whether Core includes correlation ID in responses
+**Source**: Core Contract v1 Extract, Section D.4 (NOT FOUND in Core source)
 
 ---
 
@@ -223,41 +227,16 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ### 5.2 Core Service Token
 
-**Purpose**: Authenticate Suite BFF to Core APIs (server-to-server)
+> [!WARNING]
+> **Service-to-Service Authentication: NOT AVAILABLE in Core v1**
 
-**Issuer**: Core Authentication Service
+**Core v1 Reality**:
 
-**Scope**: Core APIs only
+- Core v1 uses JWT-based authentication for user-scoped operations
+- No service-token contract exists in Core v1
+- No OAuth2 client credentials flow in Core v1
 
-**Storage**: Suite BFF server-side ONLY (environment variable, secret store, in-memory cache)
-
-**Claims** (TBD):
-
-- Service account ID (TBD)
-- Expiry timestamp (TBD)
-- Possibly org-scope (TBD)
-
-**MUST**:
-
-- Obtain token via Core authentication endpoint (TBD)
-- Store token server-side only
-- Include token in `Authorization: Bearer <token>` header for ALL Core API calls
-- Rotate token according to Core's policy (TBD)
-- Monitor token expiry and refresh proactively
-
-**MUST NOT**:
-
-- Expose token to UI or client-side code
-- Log token value
-- Include token in error messages
-- Store token in Suite DB
-- Forward UI token to Core
-
-**TODO (BLOCKED)**:
-
-- [ ] Define Core authentication endpoint and flow
-- [ ] Confirm Core service token TTL and rotation frequency
-- [ ] Confirm Core service token claims and scope
+**Service-to-Service Auth**: DEFERRED until Core v2
 
 ---
 

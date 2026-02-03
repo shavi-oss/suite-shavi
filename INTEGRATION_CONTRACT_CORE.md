@@ -40,14 +40,13 @@ This document defines the binding contract for how Suite integrates with Bassan.
 
 ## 2) Definitions
 
-| Term                   | Definition                                                                                                 |
-| ---------------------- | ---------------------------------------------------------------------------------------------------------- |
-| **Core JWT**           | JSON Web Token issued by Core for service-to-service authentication; server-only, never exposed to clients |
-| **Core Service Token** | Synonym for Core JWT; used by BFF to authenticate to Core APIs                                             |
-| **Org Alignment**      | Process of mapping Suite organizationId to Core organizationId; stored in Suite DB                         |
-| **Correlation ID**     | Unique identifier for a request, propagated across UI → BFF → Core for tracing and debugging               |
-| **BFF**                | Backend-for-Frontend; Suite's server-side API layer, the ONLY component allowed to call Core               |
-| **UI**                 | Suite frontend applications (web/mobile); MUST NOT call Core directly                                      |
+| Term                | Definition                                                                                                |
+| ------------------- | --------------------------------------------------------------------------------------------------------- |
+| **User-Scoped JWT** | JSON Web Token issued by Core for user authentication; contains user and organization claims              |
+| **Org Alignment**   | Process of mapping Suite organizationId to Core organizationId; stored in Suite DB                        |
+| **Correlation ID**  | Unique identifier for a request, propagated across UI → BFF → Core for tracing and debugging (Suite-only) |
+| **BFF**             | Backend-for-Frontend; Suite's server-side API layer, the ONLY component allowed to call Core              |
+| **UI**              | Suite frontend applications (web/mobile); MUST NOT call Core directly                                     |
 
 ---
 
@@ -59,13 +58,13 @@ This document defines the binding contract for how Suite integrates with Bassan.
 
 **MUST NOT**: UI MUST NEVER call Core APIs directly.
 
-**MUST NOT**: UI MUST NEVER possess or use Core JWT/service tokens.
+**MUST NOT**: UI MUST NEVER possess or use Core service tokens.
 
 ### 3.2 BFF → Core Only
 
 **MUST**: Suite BFF is the ONLY component allowed to call Core APIs.
 
-**MUST**: BFF MUST authenticate to Core using Core-issued service token.
+**Core v1 Authentication: User-scoped JWT ONLY. Service-to-service auth/tokens are NOT AVAILABLE in Core v1 (DEFERRED to Core v2 contract lock).**
 
 **MUST**: BFF MUST use HTTPS/TLS for all Core API calls.
 
@@ -112,43 +111,38 @@ SuiteOrganizationMapping {
 
 ### 4.3 Tenant Context Propagation
 
-**MUST**: BFF MUST include tenant context (coreOrgId) in every Core API call (e.g., via header, JWT claim, or query parameter as defined by Core).
+**MUST**: BFF MUST include tenant context in every Core API call that is org-scoped.
 
-**TODO**: Define exact mechanism for passing tenant context to Core (e.g., `X-Organization-Id` header, JWT claim).
+**Tenant context: derived from JWT claim organizationId ONLY. No X-Organization-Id / X-Tenant-Id headers. No ?organizationId= query param.**
 
 ---
 
 ## 5) Authentication & Authorization Model (Server-Only)
 
-### 5.1 How BFF Obtains Core Service Token (Principles)
+### 5.1 Core v1 Authentication Reality
 
-**MUST**: BFF obtains Core service token via Core's designated authentication endpoint (e.g., OAuth2 client credentials flow, service account login).
+**Core v1 uses User-Scoped JWT authentication ONLY.**
 
-**MUST**: BFF stores Core service token securely in server-side environment (environment variable, secret store).
+**NOT AVAILABLE in Core v1:**
 
-**MUST**: BFF includes Core service token in `Authorization` header for all Core API calls (e.g., `Authorization: Bearer <token>`).
+- Service-to-service authentication
+- Core service tokens
+- OAuth2 client credentials flow
+- Token refresh mechanism
 
-**MUST NOT**: BFF MUST NOT expose Core service token to UI or client-side code.
+**MUST**: BFF validates user-scoped JWT (containing organizationId claim) and forwards it to Core as `Authorization: Bearer <jwt-token>`.
 
-**TODO**: Define exact Core authentication endpoint and flow (e.g., `POST /auth/service-token`).
+**MUST**: BFF includes JWT in `Authorization: Bearer <jwt-token>` header for Core API calls.
 
-### 5.2 Token Rotation & Expiry Handling (Principles)
+**401/403 from Core: DENY immediately (fail-closed). No retry. No refresh.**
 
-**MUST**: BFF MUST handle Core service token expiry gracefully (detect 401 Unauthorized, refresh token, retry request).
+### 5.2 Never Expose to Clients
 
-**MUST**: BFF MUST rotate Core service token according to Core's policy (e.g., daily, weekly).
+**MUST NOT**: Core service token MUST NEVER be sent to UI (NOT AVAILABLE in Core v1).
 
-**MUST**: BFF MUST log token refresh events for audit purposes.
+**MUST NOT**: Sensitive authentication tokens MUST NEVER be logged in application logs.
 
-**TODO**: Define Core service token TTL and rotation frequency.
-
-### 5.3 Never Expose to Clients
-
-**MUST NOT**: Core service token MUST NEVER be sent to UI.
-
-**MUST NOT**: Core service token MUST NEVER be logged in application logs.
-
-**MUST NOT**: Core service token MUST NEVER be included in error messages returned to clients.
+**MUST NOT**: Authentication tokens MUST NEVER be included in error messages returned to clients.
 
 ---
 
@@ -200,7 +194,7 @@ SuiteOrganizationMapping {
 
 **MUST NOT**: BFF MUST NOT retry on client errors (4xx) or authentication failures (401, 403).
 
-**TODO**: Define exact retry policy (max retries, backoff strategy, timeout values).
+**Policy**: Max 3 retries, exponential backoff (1s, 2s, 4s).
 
 ### 7.2 Idempotency Considerations (Conceptual)
 
@@ -208,15 +202,18 @@ SuiteOrganizationMapping {
 
 **MUST**: BFF MUST NOT retry non-idempotent operations (e.g., POST /create-resource) without idempotency safeguards.
 
-**TODO**: Define which Core endpoints support idempotency keys and how to use them.
+**Note**: Template Publishing is DEFERRED in Core v1, so idempotency requirements for publish are N/A in v1.
 
 ### 7.3 Timeouts
 
-**MUST**: BFF MUST set reasonable timeouts for Core API calls (e.g., 10 seconds for read, 30 seconds for write).
+**MUST**: BFF MUST set reasonable timeouts for Core API calls.
+
+**Timeouts**:
+
+- Read operations (GET): 10 seconds
+- Write operations (POST, PATCH): 30 seconds
 
 **MUST**: BFF MUST handle timeout errors gracefully (log, return safe error to UI).
-
-**TODO**: Define specific timeout values per Core endpoint category.
 
 ### 7.4 Circuit Breaker Principle (No Tooling)
 
@@ -224,7 +221,7 @@ SuiteOrganizationMapping {
 
 **MUST**: BFF MUST log circuit breaker state changes (open, half-open, closed) for observability.
 
-**TODO**: Define circuit breaker thresholds (failure count, timeout duration, recovery strategy).
+**Thresholds**: 5 consecutive failures, 60 second timeout in open state, half-open recovery strategy.
 
 ---
 
@@ -238,9 +235,7 @@ SuiteOrganizationMapping {
 
 **MUST**: BFF MUST include correlation ID in all log entries for that request.
 
-**MUST**: Core SHOULD include correlation ID in its responses and logs (if supported).
-
-**TODO**: Confirm Core's support for correlation ID propagation.
+**Correlation ID is Suite-only. Core does not guarantee echo/logging.**
 
 ### 8.2 Logging Boundaries
 
@@ -253,13 +248,13 @@ SuiteOrganizationMapping {
 
 **MUST NOT Log**:
 
-- Core service token
+- Core service tokens (NOT AVAILABLE in Core v1)
 - Sensitive request/response payloads (unless explicitly safe and approved)
 - PII or confidential business data
 
 ### 8.3 No Secrets in Logs
 
-**MUST**: BFF MUST sanitize logs to exclude Core service tokens, API keys, passwords, and PII.
+**MUST**: BFF MUST sanitize logs to exclude authentication tokens, API keys, passwords, and PII.
 
 **MUST**: Use correlation IDs for debugging instead of logging sensitive context.
 
@@ -279,7 +274,7 @@ SuiteOrganizationMapping {
 
 **MUST**: Suite MUST handle Core API version changes gracefully (e.g., detect version mismatch, log error, fail-closed).
 
-**TODO**: Define how Core API versioning is communicated (e.g., version header, endpoint path).
+**Core API versioning**: Endpoint path `/api/v1/...`
 
 ### 9.3 Breaking Changes
 
@@ -294,13 +289,16 @@ SuiteOrganizationMapping {
 Execution MUST STOP IMMEDIATELY if any of the following occurs:
 
 - UI attempts to call Core API directly
-- Core service token found in UI code or client-side storage
+- Core service token found in UI code or client-side storage (NOT AVAILABLE in Core v1)
 - BFF accesses Core DB directly
-- BFF calls Core endpoint not listed in this contract (TODO section)
+- BFF calls Core endpoint not listed in Core Contract v1
 - Tenant mapping ambiguity handled with fail-open behavior
-- Core API call made without tenant context (coreOrgId)
-- Core service token logged or included in error messages
+- Core API call made without tenant context (organizationId from JWT claim)
+- Authentication tokens logged or included in error messages
 - Suite stores Core-owned sensitive data without explicit authorization in this contract
+- BFF attempts to implement service-token flows (NOT AVAILABLE in Core v1)
+- BFF attempts to implement token refresh mechanism (NOT AVAILABLE in Core v1)
+- BFF invents tenant headers not in Core v1 (e.g., X-Organization-Id, X-Tenant-Id)
 
 **Action on STOP**: Halt all work, document the violation, escalate to Governance Authority.
 
@@ -312,7 +310,7 @@ This integration contract is considered ACTIVE and BINDING when ALL of the follo
 
 - [ ] All allowed interaction patterns are explicit (UI → BFF only, BFF → Core only, no Core DB access)
 - [ ] OrganizationId mapping rules are defined and fail-closed
-- [ ] Core service token handling is documented (obtain, store, rotate, never expose)
+- [ ] Authentication uses User-Scoped JWT only (Core v1 reality)
 - [ ] Data flow rules are defined (what may be cached, source of truth boundaries)
 - [ ] Error handling and resilience principles are documented (retries, idempotency, timeouts, circuit breaker)
 - [ ] Observability contract is defined (correlation IDs, logging boundaries, no secrets)
@@ -323,81 +321,65 @@ This integration contract is considered ACTIVE and BINDING when ALL of the follo
 
 ---
 
-## 12) TODO Appendix
+## 12) Core Contract v1 Alignment
 
-The following items require further definition before implementation:
+### 12.1 Core Endpoints (Locked to Core Contract v1)
 
-### 12.1 Core Endpoints
+**Authorized Core Endpoints**:
 
-**TODO**: Define exact list of Core API endpoints that Suite BFF is authorized to call, including:
+**Organization Validation**:
 
-- Endpoint URL
-- HTTP method
-- Purpose
-- Required headers (e.g., Authorization, X-Organization-Id, X-Correlation-Id)
-- Request/response schema (reference or inline)
-- Expected status codes
-- Idempotency support
+- Endpoint: `GET /api/v1/organizations/:id`
+- Purpose: Validate that Core organizationId exists before creating mapping
+- Headers: `Authorization: Bearer <jwt-token>`, `X-Correlation-Id: <id>` (Suite-only)
+- Response: 200 OK (org exists), 404 Not Found (org does not exist)
+- Idempotency: N/A (read-only)
 
-**Example placeholder**:
+**Template Publishing: DEFERRED. No Core publish endpoint exists in Core v1. Implementation requires Core v2 and a new contract lock.**
 
-```
-GET /api/v1/workflows
-Purpose: Retrieve workflow definitions for organization
-Headers: Authorization: Bearer <token>, X-Organization-Id: <coreOrgId>, X-Correlation-Id: <id>
-Response: 200 OK, array of workflow objects
-Idempotency: N/A (read-only)
-```
+### 12.2 Authentication Flow (Core Contract v1)
 
-### 12.2 Core Authentication Flow
+**Core v1 Reality**:
 
-**TODO**: Define exact Core authentication endpoint and flow for obtaining service token:
+- User-scoped JWT authentication ONLY
+- No service-to-service authentication
+- No core service tokens
+- No OAuth2 client credentials flow
+- No token refresh mechanism
 
-- Endpoint URL (e.g., `POST /auth/service-token`)
-- Authentication method (e.g., OAuth2 client credentials, service account credentials)
-- Request payload (e.g., `{ clientId, clientSecret }`)
-- Response format (e.g., `{ accessToken, expiresIn }`)
-- Token TTL and rotation frequency
+**Authentication Mechanism**:
 
-### 12.3 Tenant Context Propagation Mechanism
+- Suite validates a user-scoped JWT (must include organizationId claim) and forwards it as Authorization: Bearer <jwt-token> on Core API calls
+- JWT contains claims: `sub` (user ID), `email`, `organizationId`
+- No token minting/refresh exists in Core v1; any 401 is fail-closed
 
-**TODO**: Define exact mechanism for passing tenant context (coreOrgId) to Core:
+### 12.3 Tenant Context Propagation (Core Contract v1)
 
-- Header name (e.g., `X-Organization-Id`)
-- JWT claim (e.g., `orgId` in Core service token)
-- Query parameter (e.g., `?organizationId=<coreOrgId>`)
+**Mechanism**:
 
-### 12.4 Retry Policy
+- JWT Claim: `organizationId` (in JWT payload)
+- Core extracts `organizationId` from JWT via `JwtStrategy`
+- Core sets CLS context: `orgId`, `userId`
 
-**TODO**: Define exact retry policy for Core API calls:
+**NOT USED** (confirmed NOT in Core v1):
 
-- Max retries (e.g., 3)
-- Backoff strategy (e.g., exponential: 1s, 2s, 4s)
-- Timeout values per endpoint category (e.g., 10s for read, 30s for write)
+- ❌ `X-Organization-Id` header
+- ❌ `X-Tenant-Id` header
+- ❌ Query parameter `?organizationId=`
 
-### 12.5 Circuit Breaker Thresholds
+### 12.4 Correlation ID (Suite-Only)
 
-**TODO**: Define circuit breaker thresholds:
+**Suite Implementation**:
 
-- Failure count to open circuit (e.g., 5 consecutive failures)
-- Timeout duration in open state (e.g., 60 seconds)
-- Recovery strategy (e.g., half-open state, single test request)
+- UI → BFF: Generate correlation ID in BFF (UUID v4)
+- BFF → Core: Include `X-Correlation-Id: <id>` header in outbound requests
+- BFF logs: Include correlation ID in ALL Suite log entries
 
-### 12.6 Core API Versioning
+**Core v1 Reality**:
 
-**TODO**: Define how Core API versioning is communicated:
-
-- Version header (e.g., `X-API-Version: 1`)
-- Endpoint path (e.g., `/api/v1/workflows`)
-- How Suite detects and handles version mismatches
-
-### 12.7 Correlation ID Support in Core
-
-**TODO**: Confirm whether Core supports correlation ID propagation:
-
-- Header name (e.g., `X-Correlation-Id`)
-- Whether Core includes correlation ID in responses
-- Whether Core logs correlation ID for debugging
+- Core v1 does NOT have correlation ID middleware/interceptor
+- Core echo/logging of correlation ID is NOT GUARANTEED
+- Correlation ID is for Suite-side tracing only
 
 ---
 

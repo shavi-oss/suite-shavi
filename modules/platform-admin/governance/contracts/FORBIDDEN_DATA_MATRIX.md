@@ -22,27 +22,27 @@ This document defines what data `platform-admin` module is **FORBIDDEN** to stor
 
 ## 2) Forbidden Data Matrix
 
-| Data Category                    | Owner          | Allowed to Store? | Allowed to Cache? | Max Retention Stance | Reason                                                                |
-| -------------------------------- | -------------- | ----------------- | ----------------- | -------------------- | --------------------------------------------------------------------- |
-| **Core Service Token**           | Core           | ❌ NO             | ❌ NO             | N/A                  | Server-only, in-memory only. NEVER store in DB, logs, or UI.          |
-| **Suite UI Token**               | Suite Auth     | ❌ NO             | ❌ NO             | N/A                  | Session-only. NEVER store in Suite DB or forward to Core.             |
-| **Core User Credentials**        | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns authentication. Suite MUST NOT store passwords, hashes.     |
-| **Core Audit Logs**              | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns audit trail. Suite MUST NOT replicate or cache.             |
-| **Core Workflow Execution Logs** | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns execution state. Suite MUST NOT store or cache.             |
-| **Core Template Definitions**    | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns templates. Suite only triggers publish, no storage.         |
-| **Core Organization Details**    | Core           | ❌ NO (except ID) | ❌ NO (except ID) | Indefinite (ID only) | Suite stores `coreOrgId` as external reference ONLY. No other fields. |
-| **Customer User PII**            | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns customer data. Suite MUST NOT store PII.                    |
-| **Billing/Subscription Data**    | Future Billing | ❌ NO             | ❌ NO             | N/A                  | Out of scope for platform-admin. Future module owns this.             |
-| **CRM/Omnichannel Data**         | Future CRM     | ❌ NO             | ❌ NO             | N/A                  | Out of scope for platform-admin. Future module owns this.             |
-| **Core Internal State**          | Core           | ❌ NO             | ❌ NO             | N/A                  | Core is black box. Suite MUST NOT assume or store internal state.     |
-| **API Keys (Third-Party)**       | Various        | ❌ NO             | ❌ NO             | N/A                  | Secrets MUST NOT be stored in Suite DB or logs.                       |
-| **Passwords/Hashes**             | Various        | ❌ NO             | ❌ NO             | N/A                  | Credentials MUST NOT be stored in Suite DB or logs.                   |
-| **Internal User Email**          | platform-admin | ✅ YES            | ✅ YES            | Indefinite           | Necessary for internal user management. Soft delete only.             |
-| **Internal User Name**           | platform-admin | ✅ YES            | ✅ YES            | Indefinite           | Necessary for internal user management. Soft delete only.             |
-| **Suite Org Name**               | platform-admin | ✅ YES            | ✅ YES            | Indefinite           | Suite owns organization records. Soft delete only.                    |
-| **Suite Org ↔ Core Org Mapping** | platform-admin | ✅ YES            | ✅ YES            | Indefinite           | Suite owns mapping. Immutable (no delete).                            |
-| **Audit Log Metadata**           | platform-admin | ✅ YES            | ✅ YES            | TBD (e.g., 2 years)  | Append-only. NO SECRETS in metadata.                                  |
-| **Correlation IDs**              | platform-admin | ✅ YES            | ✅ YES            | TBD (e.g., 2 years)  | Necessary for tracing. Stored in audit logs.                          |
+| Data Category                    | Owner          | Allowed to Store? | Allowed to Cache? | Max Retention Stance | Reason                                                                            |
+| -------------------------------- | -------------- | ----------------- | ----------------- | -------------------- | --------------------------------------------------------------------------------- |
+| **Core Service Token**           | Core           | ❌ NO             | ❌ NO             | N/A                  | Server-only, in-memory only. NEVER store in DB, logs, or UI.                      |
+| **Suite UI Token**               | Suite Auth     | ❌ NO             | ❌ NO             | N/A                  | Session-only. NEVER store in Suite DB or forward to Core.                         |
+| **Core User Credentials**        | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns authentication. Suite MUST NOT store passwords, hashes.                 |
+| **Core Audit Logs**              | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns audit trail. Suite MUST NOT replicate or cache.                         |
+| **Core Workflow Execution Logs** | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns execution state. Suite MUST NOT store or cache.                         |
+| **Core Template Definitions**    | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns templates. Suite template publish is DEFERRED in Core v1 (no endpoint). |
+| **Core Organization Details**    | Core           | ❌ NO (except ID) | ❌ NO (except ID) | Indefinite (ID only) | Suite stores `coreOrgId` as external reference ONLY. No other fields.             |
+| **Customer User PII**            | Core           | ❌ NO             | ❌ NO             | N/A                  | Core owns customer data. Suite MUST NOT store PII.                                |
+| **Billing/Subscription Data**    | Future Billing | ❌ NO             | ❌ NO             | N/A                  | Out of scope for platform-admin. Future module owns this.                         |
+| **CRM/Omnichannel Data**         | Future CRM     | ❌ NO             | ❌ NO             | N/A                  | Out of scope for platform-admin. Future module owns this.                         |
+| **Core Internal State**          | Core           | ❌ NO             | ❌ NO             | N/A                  | Core is black box. Suite MUST NOT assume or store internal state.                 |
+| **API Keys (Third-Party)**       | Various        | ❌ NO             | ❌ NO             | N/A                  | Secrets MUST NOT be stored in Suite DB or logs.                                   |
+| **Passwords/Hashes**             | Various        | ❌ NO             | ❌ NO             | N/A                  | Credentials MUST NOT be stored in Suite DB or logs.                               |
+| **Internal User Email**          | platform-admin | ✅ YES            | ✅ YES            | Indefinite           | Necessary for internal user management. Soft delete only.                         |
+| **Internal User Name**           | platform-admin | ✅ YES            | ✅ YES            | Indefinite           | Necessary for internal user management. Soft delete only.                         |
+| **Suite Org Name**               | platform-admin | ✅ YES            | ✅ YES            | Indefinite           | Suite owns organization records. Soft delete only.                                |
+| **Suite Org ↔ Core Org Mapping** | platform-admin | ✅ YES            | ✅ YES            | Indefinite           | Suite owns mapping. Immutable (no delete).                                        |
+| **Audit Log Metadata**           | platform-admin | ✅ YES            | ✅ YES            | TBD (e.g., 2 years)  | Append-only. NO SECRETS in metadata.                                              |
+| **Correlation IDs**              | platform-admin | ✅ YES            | ✅ YES            | TBD (e.g., 2 years)  | Necessary for tracing. Stored in audit logs.                                      |
 
 ---
 
@@ -146,10 +146,10 @@ This document defines what data `platform-admin` module is **FORBIDDEN** to stor
 **Rules**:
 
 - MUST NOT store template definitions, steps, or configurations
-- Suite only triggers template publish action
+- Suite template publish capability is DEFERRED in Core v1 (no endpoint exists)
 - Core owns template data
 
-**Reason**: Data ownership. Core owns template definitions.
+**Reason**: Data ownership. Core owns template definitions. Template publish is DEFERRED until Core v2.
 
 ---
 

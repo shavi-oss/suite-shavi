@@ -59,9 +59,8 @@ Provide a secure, auditable, fail-closed administrative interface for Suite plat
 
 **Template Publishing to Core**:
 
-- Trigger "Publish template to Core" action using pre-defined templates
-- Templates are hardcoded/configured (no workflow builder in MVP)
-- Audit all publish actions with correlation IDs
+- **DEFERRED**: Template Publishing is NOT AVAILABLE in Core v1.
+- **Action**: Feature blocked until Core v2.
 
 **Mandatory Cross-Cutting Concerns**:
 
@@ -69,7 +68,7 @@ Provide a secure, auditable, fail-closed administrative interface for Suite plat
 - Correlation IDs for all operations
 - Deny-by-default authorization
 - No Core token exposure to UI
-- All BFF → Core calls use server-only Core service token
+- All BFF → Core calls use User-Scoped JWT only (No Service Tokens)
 
 ### 2.2 Explicitly Out-of-Scope (MVP)
 
@@ -129,10 +128,9 @@ This module is considered successful when ALL of the following are true:
 - [ ] Missing or ambiguous org mappings fail-closed (deny operation, return safe error)
 - [ ] Authorized internal users can create and deactivate internal platform users
 - [ ] RBAC roles are enforced: `platform_admin`, `developer_ops`, `support`, `viewer`
-- [ ] Authorized internal users can trigger "Publish template to Core" using pre-defined templates
+- [ ] "Publish template to Core" feature is marked DEFERRED / HIDDEN
 - [ ] All administrative actions are logged immutably
-- [ ] No Core service token is ever exposed to UI
-- [ ] All BFF → Core calls use server-only Core service token
+- [ ] All BFF → Core calls use User-Scoped JWT only
 - [ ] All security gates pass (unit, integration, security tests)
 - [ ] Module complies with SECURITY_BASELINE.md and ARCHITECTURAL_LAWS.md
 
@@ -214,7 +212,6 @@ The following changes are FORBIDDEN without escalation:
 - Adding customer-facing user management to MVP
 - Adding workflow builder to MVP
 - Allowing UI → Core direct calls
-- Allowing Core token exposure to UI
 - Weakening fail-closed org mapping enforcement
 
 ---

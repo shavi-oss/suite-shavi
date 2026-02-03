@@ -56,7 +56,7 @@ This document defines the data contract between Suite `platform-admin` module an
 
 **TODO (BLOCKED)**:
 
-- [ ] Define exact Core API endpoint for organization validation (e.g., `GET /api/v1/organizations/:coreOrgId`)
+- [x] Exact Core API endpoint confirmed: `GET /api/v1/organizations/:id` (per Core Contract v1 Extract line 182)
 - [ ] Confirm response schema from Core team
 - [ ] Define whether `status` field is needed for validation
 
@@ -64,18 +64,22 @@ This document defines the data contract between Suite `platform-admin` module an
 
 ### 2.2 Core Template
 
+> [!WARNING]
+> **DEFERRED IN CORE V1** — Template entities and flows are DEFERRED.  
+> Core v1 does NOT expose template publish endpoints.
+
 **Owner**: Core  
 **Storage**: Core DB  
-**Access Method**: Core API (endpoint TBD per INTEGRATION_CONTRACT_CORE.md)  
+**Access Method**: NONE (template publish is DEFERRED in Core v1)  
 **Org-Scope**: Yes (templates are org-specific after publishing)
 
 **What platform-admin May Read**:
 
-- Template publish confirmation (success/failure status)
+- NONE (template publish is DEFERRED in Core v1)
 
 **Allowed Caching**:
 
-- NONE (template data is Core-owned; Suite only triggers publish action)
+- NONE (template data is Core-owned; template publish is DEFERRED)
 
 **Forbidden Fields** (MUST NOT store in Suite DB):
 
@@ -83,11 +87,7 @@ This document defines the data contract between Suite `platform-admin` module an
 - Template execution logs
 - Template version history
 
-**TODO (BLOCKED)**:
-
-- [ ] Define exact Core API endpoint for template publishing (e.g., `POST /api/v1/templates/publish`)
-- [ ] Confirm request/response schema from Core team
-- [ ] Define idempotency key support
+**Status**: Template publish capability is DEFERRED until Core v2 (requires new contract lock)
 
 ---
 

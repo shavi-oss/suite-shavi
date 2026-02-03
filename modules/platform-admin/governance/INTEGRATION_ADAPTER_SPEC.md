@@ -21,7 +21,7 @@
 The Core Integration Adapter exists to:
 
 - Provide a single, controlled abstraction layer for all BFF → Core communication
-- Enforce server-only Core service token handling
+- Enforce User-Scoped JWT authentication only
 - Ensure mandatory correlation ID propagation to Core
 - Implement fail-closed timeout and retry policies
 - Prevent direct Core API calls from UI or other unauthorized components
@@ -33,7 +33,7 @@ The adapter is the ONLY component in `platform-admin` authorized to call Core AP
 
 **The Adapter Abstracts**:
 
-- Core service token acquisition and refresh
+- User-JWT propagation only (No Service Tokens)
 - Correlation ID propagation to Core
 - Tenant context (coreOrgId) propagation to Core
 - Timeout enforcement
@@ -65,8 +65,13 @@ The adapter MUST support ONLY the following abstract interaction types:
 
 **Template Publishing**:
 
-- Publish a predefined workflow template to Core for a specific organization
-- Purpose: Enable internal operators to provision workflow templates for tenants
+> [!WARNING]
+> **DEFERRED IN CORE V1** — Template publish endpoint does NOT exist in Core v1.  
+> This interaction type is DEFERRED until Core v2. DO NOT implement.
+
+- **Status**: ❌ DEFERRED (not in Core v1)
+- **Reason**: No template publish controller found in Core v1 source
+- **Future**: May be added in Core v2 (requires new contract lock)
 
 **MUST NOT support any other interaction types** without explicit authorization via governance change control.
 
@@ -90,57 +95,35 @@ Any attempt to implement forbidden interactions is a STOP condition.
 
 ## 3. Authentication Model (Server-Only)
 
-### 3.1 Core Service Credentials Handling
+### 3.1 Service-to-Service Token (Core) — NOT AVAILABLE
 
-**MUST**:
+> [!WARNING]
+> **NOT AVAILABLE IN CORE V1**
+> Service-to-Service authentication is NOT supported. All calls must use User-Scoped JWT.
 
-- Obtain Core service token via Core authentication mechanism (DECISION REQUIRED: exact mechanism, e.g., OAuth2 client credentials, service account login)
-- Store Core service credentials (client ID, client secret, or service account key) in server-side environment variable or secret store
-- Never expose Core service credentials to UI or client-side code
-- Never log Core service credentials
-- Authenticate to Core using server-to-server flow only
+- **Status**: **NOT AVAILABLE**.
+- **Action**: Do NOT implement service token logic.
 
-**MUST NOT**:
+> [!WARNING]
+> **Service-to-Service Authentication: NOT AVAILABLE in Core v1**
 
-- Accept Core service token from UI
-- Forward Suite UI token to Core
-- Store Core service credentials in Suite DB
-- Include Core service credentials in error messages
+**Core v1 Reality**:
 
-### 3.2 Token Storage Constraints
+- Core v1 does not provide a service-token / client-credentials / refresh mechanism
+- v1 auth is user-scoped JWT only (`Authorization: Bearer <user JWT>`)
+- Any service-token mechanism is DEFERRED to Core v2 and requires a new Core contract lock gate
 
-**MUST**:
+**Adapter Behavior**:
 
-- Store Core service token in server-side memory or secure cache
-- Protect Core service token with server-side access controls
-- Invalidate cached Core service token on expiry or refresh
-
-**MUST NOT**:
-
-- Store Core service token in Suite DB
-- Store Core service token in UI-accessible storage
-- Transmit Core service token to UI
-- Log Core service token value
-
-### 3.3 Token Refresh Constraints
-
-**Core Service Token TTL**: Determined by Core (BFF accepts Core-issued TTL)
-
-**Token Refresh Trigger**: BFF detects Core service token expiry via 401 response from Core
-
-**Token Refresh Frequency**: On-demand (refresh when Core returns 401)
-
-**MUST**:
-
-- Refresh Core service token when expired (detect 401 from Core)
-- Retry failed request ONCE after token refresh
-- Log token refresh events for audit purposes
+- Adapter uses user-scoped JWT tokens (from Suite auth)
+- Adapter includes JWT in `Authorization: Bearer <jwt-token>` header for Core API calls
+- No token acquisition, rotation, or refresh logic required in v1
 
 **MUST NOT**:
 
-- Retry token refresh indefinitely
-- Proceed with Core API call if token refresh fails
-- Cache expired Core service token
+- Attempt to obtain Core service token (no mechanism exists in v1)
+- Implement token refresh logic (not available in v1)
+- Forward Suite UI token to Core without proper validation
 
 ---
 
@@ -197,7 +180,7 @@ Any attempt to implement forbidden interactions is a STOP condition.
 **MUST NOT Retry**:
 
 - Core API returns 4xx (client error: 400, 401, 403, 404)
-- Core API returns 401 (authentication failure) — MUST refresh token and retry ONCE
+- Core API returns 401 (authentication failure) — **Fail-closed. No refresh is available in Core v1. Surface auth failure.**
 - Core API returns 403 (authorization failure)
 - Request timeout (operation-level timeout)
 - Non-idempotent operations without idempotency key
@@ -284,21 +267,29 @@ Any attempt to implement forbidden interactions is a STOP condition.
 
 ### 6.2 Propagation Requirements to Core
 
+> [!IMPORTANT]
+> **Correlation ID is SUITE-ONLY** — Core v1 does NOT have correlation ID middleware.
+
 **Correlation ID Header Name**: `X-Correlation-Id`
 
 - Generated at BFF entry point
-- Propagated to Core in all API requests
+- Propagated to Core in all API requests (Suite outbound only)
+- **Core echo/logging is NOT GUARANTEED** (Core v1 has no correlation middleware)
 
 **MUST**:
 
 - Include correlation ID in all Core API requests
-- Use header specified by Core (DECISION REQUIRED)
 - Propagate correlation ID received from BFF without modification
+- Log correlation ID on Suite side for tracing
 
 **MUST NOT**:
 
 - Omit correlation ID from Core API requests
 - Modify or regenerate correlation ID in adapter
+- Depend on Core echoing correlation ID in responses
+- Assume Core logs correlation IDs
+
+**Source**: Core Contract v1 Extract, Section D.4 (NOT FOUND in Core source)
 
 ### 6.3 Logging Requirements
 
@@ -331,8 +322,7 @@ The following integration patterns are FORBIDDEN and constitute STOP conditions:
 
 **Token Leak**:
 
-- Core service token exposed to UI
-- Core service token included in error messages
+- Attempt to use Service Tokens
 - Core service token logged
 
 **UI → Core Direct Call**:
@@ -394,7 +384,7 @@ This integration adapter specification is considered ACTIVE and BINDING when ALL
 - [ ] Adapter purpose is clearly defined
 - [ ] Allowed Core interactions are enumerated (abstract, no endpoints)
 - [ ] Forbidden interactions are explicitly listed
-- [ ] Authentication model is defined (server-only, token storage, token refresh)
+- [ ] Authentication model is defined (User-Scoped JWT only)
 - [ ] Timeout policy placeholders are documented (DECISION REQUIRED items identified)
 - [ ] Retry and idempotency rules are defined (DECISION REQUIRED items identified)
 - [ ] Correlation ID propagation requirements are explicit

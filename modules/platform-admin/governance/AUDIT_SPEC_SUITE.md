@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | AUDIT_SPEC_SUITE                        |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | FINAL — GATE 2                          |
+| Status         | FINAL — CORE V1 ALIGNED                 |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-01-27                              |
+| Effective Date | 2026-02-04                              |
 
 ---
 
@@ -66,9 +66,11 @@ The `platform-admin` module MUST log the following audit event types:
 
 **Template Publish Events**:
 
-- `TEMPLATE_PUBLISH_INITIATED`: Template publish operation initiated
-- `TEMPLATE_PUBLISH_SUCCESS`: Template successfully published to Core
-- `TEMPLATE_PUBLISH_FAILED`: Template publish failed (Core API error, timeout, validation failure)
+> [!WARNING]
+> **DEFERRED (Core v2+)** — Template publishing is NOT available in Core v1.
+
+- Template publish events are NOT logged in Core v1 (no Core endpoint exists)
+- Future Core versions may require: `TEMPLATE_PUBLISH_INITIATED`, `TEMPLATE_PUBLISH_SUCCESS`, `TEMPLATE_PUBLISH_FAILED`
 
 **Failure / STOP Events**:
 
@@ -164,7 +166,7 @@ For FAILURE events:
 
 **MUST sanitize `metadata`**:
 
-- Remove Core service tokens
+- Remove Core JWTs (NOT AVAILABLE: service tokens in Core v1)
 - Remove Suite UI tokens
 - Remove passwords or credentials
 - Remove sensitive business data
@@ -182,13 +184,17 @@ For FAILURE events:
 
 ---
 
-## 4. Retention Policy (DECISION REQUIRED)
+## 4. Retention Policy (Operational Guidance)
 
-### 4.1 Storage Retention Duration (Placeholder)
+### 4.1 Storage Retention Duration
 
-**Audit Log Retention Duration**: 365 days (1 year)
+**Initial Operational Guidance (Non-Binding)**:
 
+- Retention Duration: 365 days (1 year)
 - Rationale: Compliance requirements, security investigation needs, incident response
+
+> [!NOTE]
+> Retention duration is subject to adjustment based on compliance requirements (GDPR, SOC 2, ISO 27001) and security policy.
 
 **MUST**:
 
@@ -200,13 +206,17 @@ For FAILURE events:
 - Delete audit logs before retention period expires
 - Allow manual deletion of audit logs
 
-### 4.2 Archive vs Delete (Placeholder)
+### 4.2 Archive vs Delete
 
-**Archive Strategy**: Archive to cold storage after 365 days
+**Initial Operational Guidance (Non-Binding)**:
 
+- Archive Strategy: Archive to cold storage after 365 days
 - Archive location: Secure, immutable cloud object storage
 - Manual deletion: FORBIDDEN
 - Archived logs retain correlation IDs for traceability
+
+> [!NOTE]
+> Archive strategy is subject to adjustment based on storage costs and compliance requirements.
 
 **MUST** (if archiving):
 
@@ -339,6 +349,6 @@ The following changes are FORBIDDEN without escalation:
 
 ## 8) Signature
 
-**Prepared By**: Principal Software Architect & Governance Authority  
-**Date**: 2026-01-27  
-**Status**: FINAL — GATE 2
+**Prepared By**: Governance Authority  
+**Date**: 2026-02-04  
+**Status**: FINAL — CORE V1 ALIGNED

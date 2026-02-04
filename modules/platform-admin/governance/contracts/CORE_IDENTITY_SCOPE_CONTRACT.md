@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | CORE_IDENTITY_SCOPE_CONTRACT            |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | ACTIVE — IDENTITY CONTRACT              |
+| Status         | FINAL — IDENTITY CONTRACT               |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-01-30                              |
+| Effective Date | 2026-02-04                              |
 
 ---
 
@@ -18,20 +18,150 @@
 
 This document defines the identity and scope contract for Suite `platform-admin` module interactions with Bassan.os Core. It establishes:
 
+- JWT authentication mechanism (Core-issued, Suite validates)
+- Tenant context propagation (organizationId via JWT claim)
 - OrganizationId mapping model (Suite ↔ Core)
 - Fail-closed ambiguity rules
-- Tenant context propagation mechanism
-- Correlation ID rules (UI → BFF → Core)
-- Token model separation (UI token vs Core service token)
+- Correlation ID rules (Suite-only feature)
+- Token model separation (UI token vs Core JWT)
 - Logging boundaries (no secrets)
 
 ---
 
-## 2) OrganizationId Mapping Model
+## 2) JWT Authentication (Core-Issued)
 
-### 2.1 Mapping Structure
+### 2.1 Authentication Mechanism
 
-**Suite → Core Mapping**:
+**CONFIRMED (Core v1)**
+
+Core uses JWT-based authentication with Bearer tokens.
+
+**Token Type**: Bearer token  
+**Header**: `Authorization: Bearer <jwt-token>`
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 3.2
+
+---
+
+### 2.2 JWT Claims
+
+**CONFIRMED (Core v1)**
+
+Core JWT payload contains the following claims:
+
+| Claim            | Type   | Purpose                |
+| ---------------- | ------ | ---------------------- |
+| `sub`            | string | User ID                |
+| `email`          | string | User email             |
+| `organizationId` | string | Tenant/Organization ID |
+
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section D.1 (jwt.strategy.ts:L29-L33)
+
+---
+
+### 2.3 req.user Fields
+
+**CONFIRMED (Core v1)**
+
+Core JwtStrategy populates `req.user` with:
+
+```typescript
+{
+  id: payload.sub,           // User ID
+  email: payload.email,      // User email
+  organizationId: payload.organizationId  // Tenant ID
+}
+```
+
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section D.1 (jwt.strategy.ts:L45-L49)
+
+---
+
+### 2.4 Guards
+
+**CONFIRMED (Core v1)**
+
+Core applies the following guards to protected endpoints:
+
+- `JwtAuthGuard` — JWT validation (Passport)
+- `TenantGuard` — CLS context + request sanitization
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 3.2
+
+---
+
+## 3) Tenant Context Propagation
+
+### 3.1 Tenant Context Mechanism
+
+**CONFIRMED (Core v1)**
+
+Core extracts tenant context from JWT claim `organizationId` (NOT from headers or query params).
+
+**Propagation Flow**:
+
+1. Client → Core: JWT claim in `Authorization` header
+2. Core extracts `organizationId` from JWT payload via JwtStrategy
+3. Core sets CLS context: `orgId`, `userId`
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 3.3
+
+---
+
+### 3.2 CLS Keys
+
+**CONFIRMED (Core v1)**
+
+Core TenantGuard sets the following CLS keys:
+
+| CLS Key  | Source                               | Type   |
+| -------- | ------------------------------------ | ------ |
+| `orgId`  | `req.user.organizationId` (from JWT) | string |
+| `userId` | `req.user.id` (from JWT sub)         | string |
+
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section D.2 (tenant.guard.ts:L56-L57)
+
+---
+
+### 3.3 NOT USED (Core v1)
+
+**NOT AVAILABLE**
+
+The following mechanisms are NOT used by Core v1 for tenant context:
+
+- ❌ `X-Organization-Id` header
+- ❌ `X-Tenant-Id` header
+- ❌ Query parameter `?organizationId=`
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 3.3
+
+---
+
+### 3.4 Request Sanitization
+
+**CONFIRMED (Core v1)**
+
+Core TenantGuard actively **removes** manual tenant injection attempts from:
+
+- Query parameters: `organizationId`, `orgId`, `tenantId`
+- Request body: `organizationId`, `orgId`, `tenantId`
+- URL params: `organizationId`
+
+**Security Behavior**: Blocks manual tenant injection, logs warnings.
+
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section D.2 (tenant.guard.ts:L72-L124)
+
+---
+
+## 4) Suite → Core OrganizationId Mapping
+
+### 4.1 Mapping Model
+
+**SUITE-ONLY**
+
+Suite maintains a mapping between Suite organizationId and Core organizationId.
+
+**Mapping Structure**:
 
 ```typescript
 {
@@ -49,11 +179,13 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ---
 
-### 2.2 Mapping Creation Rules
+### 4.2 Mapping Creation Rules
+
+**SUITE-ONLY**
 
 **MUST**:
 
-- Validate `coreOrgId` exists in Core BEFORE creating mapping (via `ValidateCoreOrganization` command)
+- Validate `coreOrgId` exists in Core BEFORE creating mapping (via `GET /api/v1/organizations/:id`)
 - Ensure `suiteOrgId` is unique (one Suite org maps to one Core org)
 - Ensure `coreOrgId` is unique (one Core org maps to one Suite org)
 - Write audit log entry on mapping creation
@@ -66,9 +198,11 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ---
 
-### 2.3 Fail-Closed Ambiguity Rules
+### 4.3 Fail-Closed Ambiguity Rules
 
-**Scenario 1: Missing Mapping**
+**SUITE-ONLY**
+
+#### Scenario 1: Missing Mapping
 
 **Condition**: Suite org has no `coreOrgId` mapping
 
@@ -81,7 +215,7 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ---
 
-**Scenario 2: Ambiguous Mapping**
+#### Scenario 2: Ambiguous Mapping
 
 **Condition**: Multiple Suite orgs map to same `coreOrgId` (should not happen, but fail-closed)
 
@@ -94,7 +228,7 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ---
 
-**Scenario 3: Stale Mapping**
+#### Scenario 3: Stale Mapping
 
 **Condition**: `coreOrgId` exists in mapping but no longer exists in Core (org deleted in Core)
 
@@ -107,9 +241,11 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ---
 
-## 3) Tenant Context Propagation Mechanism
+## 5) Suite BFF → Core Tenant Propagation
 
-### 3.1 Propagation Flow
+### 5.1 Propagation Flow
+
+**SUITE-ONLY**
 
 **UI → BFF**:
 
@@ -119,31 +255,23 @@ This document defines the identity and scope contract for Suite `platform-admin`
 **BFF → Core**:
 
 - BFF resolves `suiteOrgId` → `coreOrgId` via mapping table
-- BFF includes `coreOrgId` in JWT claim (Core extracts via JwtStrategy)
+- BFF validates that the user-scoped Core JWT (already issued by Core) contains the correct `organizationId` claim matching `coreOrgId`
+- BFF forwards the validated Core JWT as-is in `Authorization: Bearer <core-jwt>` header
 
-**Mechanism** (CONFIRMED from Core v1):
-
-- **JWT Claim**: `organizationId` (in JWT payload)
-- Core extracts `organizationId` from JWT via `JwtStrategy`
-- Core sets CLS context: `orgId`, `userId`
-
-**NOT USED** (confirmed NOT in Core v1):
-
-- ❌ `X-Organization-Id` header
-- ❌ `X-Tenant-Id` header
-- ❌ Query parameter `?organizationId=`
-
-**Source**: Core Contract v1 Extract, Section D.2
+> [!IMPORTANT]
+> BFF does NOT mint, construct, or modify Core JWTs. BFF only validates and forwards Core-issued JWTs.
 
 ---
 
-### 3.2 Fail-Closed Enforcement
+### 5.2 Fail-Closed Enforcement
+
+**SUITE-ONLY**
 
 **MUST**:
 
 - Fail-closed if `suiteOrgId` → `coreOrgId` mapping is missing
 - Fail-closed if `coreOrgId` is ambiguous
-- Include `coreOrgId` in EVERY org-scoped Core API call
+- Include `coreOrgId` in Core JWT for EVERY org-scoped Core API call
 
 **MUST NOT**:
 
@@ -153,12 +281,23 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ---
 
-## 4) Correlation ID Rules (End-to-End)
+## 6) Correlation ID (Suite-Only Feature)
 
-### 4.1 Correlation ID Generation
+### 6.1 Core v1 Reality
 
-> [!IMPORTANT]
-> **Correlation ID is SUITE-ONLY** — Core v1 does NOT have correlation ID middleware.
+**NOT AVAILABLE**
+
+Core v1 does NOT have correlation ID middleware or interceptor.
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 5.3
+
+---
+
+### 6.2 Suite Correlation ID Generation
+
+**SUITE-ONLY**
+
+Suite BFF generates and propagates correlation IDs for tracing.
 
 **UI → BFF**:
 
@@ -171,17 +310,17 @@ This document defines the identity and scope contract for Suite `platform-admin`
 - BFF includes correlation ID in `X-Correlation-Id` header for ALL Core API calls
 - BFF logs correlation ID in ALL log entries for that request
 
-**Core v1 Reality**:
+**Core Echo**: NOT GUARANTEED (Core v1 has no correlation middleware)
 
-- Core v1 does NOT have correlation ID middleware/interceptor
-- Core echo/logging of correlation ID is NOT GUARANTEED
-- Correlation ID is for Suite-side tracing only
+**Purpose**: Suite-side request tracing and debugging only
 
-**Source**: Core Contract v1 Extract, Section D.4 (NOT FOUND in Core source)
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 6.1
 
 ---
 
-### 4.2 Correlation ID Propagation Rules
+### 6.3 Correlation ID Propagation Rules
+
+**SUITE-ONLY**
 
 **MUST**:
 
@@ -198,13 +337,15 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ---
 
-## 5) Token Model Separation
+## 7) Token Model Separation
 
-### 5.1 Suite UI Token
+### 7.1 Suite UI Token
+
+**SUITE-ONLY**
 
 **Purpose**: Authenticate UI users to Suite BFF
 
-**Issuer**: Suite Authentication Service (TBD)
+**Issuer**: Suite Authentication Service (to be defined)
 
 **Scope**: Suite BFF only (NEVER forwarded to Core)
 
@@ -223,42 +364,69 @@ This document defines the identity and scope contract for Suite `platform-admin`
 - Use UI token to authenticate to Core
 - Store UI token server-side beyond session duration
 
----
-
-### 5.2 Core Service Token
-
-> [!WARNING]
-> **Service-to-Service Authentication: NOT AVAILABLE in Core v1**
-
-**Core v1 Reality**:
-
-- Core v1 uses JWT-based authentication for user-scoped operations
-- No service-token contract exists in Core v1
-- No OAuth2 client credentials flow in Core v1
-
-**Service-to-Service Auth**: DEFERRED until Core v2
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-5 (Token & Identity Separation)
 
 ---
 
-### 5.3 Token Separation Enforcement
+### 7.2 Core JWT (User-Scoped)
+
+**CONFIRMED (Core v1)**
+
+Core uses JWT-based authentication for user-scoped operations.
+
+**Issuer**: Core Authentication Service
+
+**Scope**: Core API only
+
+**Claims**: `sub`, `email`, `organizationId`
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 3.2
+
+---
+
+### 7.3 Service-to-Service Authentication
+
+**NOT AVAILABLE**
+
+Core v1 does NOT support service-to-service authentication.
+
+**Not Found in Core v1**:
+
+- ❌ Service token contract
+- ❌ OAuth2 client credentials flow
+- ❌ Service account endpoints
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 5.1
+
+**Status**: DEFERRED until Core v2
+
+---
+
+### 7.4 Token Separation Enforcement
+
+**SUITE-ONLY**
 
 **MUST**:
 
-- Maintain strict separation between UI token and Core service token
+- Maintain strict separation between UI token and Core JWT
 - Use UI token ONLY for Suite BFF authentication
-- Use Core service token ONLY for Core API authentication
+- Use Core JWT ONLY for Core API authentication
 
 **MUST NOT**:
 
-- Mix or conflate UI token and Core service token
+- Mix or conflate UI token and Core JWT
 - Forward UI token to Core
-- Expose Core service token to UI
+- Expose Core JWT to UI
+
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-5 (Token & Identity Separation)
 
 ---
 
-## 6) Logging Boundaries (No Secrets)
+## 8) Logging Boundaries (No Secrets)
 
-### 6.1 What MUST Be Logged
+### 8.1 What MUST Be Logged
+
+**SUITE-ONLY**
 
 **BFF Side**:
 
@@ -266,16 +434,17 @@ This document defines the identity and scope contract for Suite `platform-admin`
 - Tenant context (`suiteOrgId`, `coreOrgId` when applicable)
 - Core API call (endpoint, method, status code, duration)
 - Errors and retries
-- Token refresh events (WITHOUT token value)
 - Mapping resolution (success/failure)
 
 ---
 
-### 6.2 What MUST NOT Be Logged
+### 8.2 What MUST NOT Be Logged
+
+**SUITE-ONLY**
 
 **Secrets**:
 
-- Core service token (value)
+- Core JWT (value)
 - UI token (value)
 - API keys, passwords, credentials
 
@@ -287,7 +456,9 @@ This document defines the identity and scope contract for Suite `platform-admin`
 
 ---
 
-### 6.3 Log Sanitization Rules
+### 8.3 Log Sanitization Rules
+
+**SUITE-ONLY**
 
 **MUST**:
 
@@ -298,33 +469,20 @@ This document defines the identity and scope contract for Suite `platform-admin`
 **MUST NOT**:
 
 - Log raw request/response payloads without sanitization
-- Log Core service token or UI token values
+- Log Core JWT or UI token values
 - Log PII or confidential data
 
 ---
 
-## 7) TODO List
+## 9) Stop Rules
 
-**BLOCKED** (requires Core team input):
-
-- [ ] Confirm tenant context propagation mechanism (header, JWT claim, query param)
-- [ ] Confirm correlation ID support in Core
-- [ ] Define Core authentication endpoint and flow for service token
-- [ ] Confirm Core service token TTL and rotation frequency
-- [ ] Confirm Core service token claims and scope
-- [ ] Define Suite UI token issuer and claims (if separate auth service)
-
-**Action**: Do NOT implement identity/scope logic until contracts are defined. Proceed with interface-level contracts only.
-
----
-
-## 8) Stop Rules
+**SUITE-ONLY**
 
 Execution MUST STOP IMMEDIATELY if:
 
 - BFF forwards UI token to Core
-- BFF exposes Core service token to UI
-- BFF logs Core service token value
+- BFF exposes Core JWT to UI
+- BFF logs Core JWT value
 - BFF proceeds without tenant context when required
 - BFF proceeds with ambiguous org mapping
 - BFF omits correlation ID from Core API calls
@@ -333,22 +491,24 @@ Execution MUST STOP IMMEDIATELY if:
 
 ---
 
-## 9) Acceptance Criteria
+## 10) Acceptance Criteria
 
 This identity scope contract is ACTIVE and BINDING when:
 
-- [x] OrganizationId mapping model is explicit with fail-closed rules
-- [x] Tenant context propagation mechanism is defined (or marked TODO)
-- [x] Correlation ID rules are explicit (generation, propagation, logging)
-- [x] Token model separation is explicit (UI token vs Core service token)
+- [x] JWT authentication mechanism is documented (CONFIRMED from Core v1)
+- [x] Tenant context propagation is documented (CONFIRMED from Core v1)
+- [x] OrganizationId mapping model is explicit with fail-closed rules (SUITE-ONLY)
+- [x] Correlation ID rules are explicit (SUITE-ONLY, Core echo NOT guaranteed)
+- [x] Token model separation is explicit (UI token vs Core JWT)
+- [x] Service-to-service auth is marked NOT AVAILABLE (Core v1)
 - [x] Logging boundaries are explicit (what to log, what NOT to log)
-- [x] TODO list documents unknown mechanisms
-- [ ] Core team has confirmed propagation mechanisms and token flows (BLOCKED)
+- [x] All CONFIRMED claims have evidence links
+- [x] All NOT AVAILABLE items are documented
 
 ---
 
-## 10) Signature
+## 11) Signature
 
 **Approved By**: Governance Authority  
-**Date**: 2026-01-30  
-**Status**: ACTIVE — IDENTITY CONTRACT
+**Date**: 2026-02-04  
+**Status**: FINAL — IDENTITY CONTRACT

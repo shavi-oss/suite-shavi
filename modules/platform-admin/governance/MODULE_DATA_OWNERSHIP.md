@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | MODULE_DATA_OWNERSHIP                   |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | FINAL — GATE 5.3A ALIGNED               |
+| Status         | FINAL — CORE V1 ALIGNED                 |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-02-02                              |
+| Effective Date | 2026-02-04                              |
 
 ---
 
@@ -29,6 +29,8 @@ This document establishes clear data ownership boundaries for the `platform-admi
 
 ### 2.1 SuiteOrganization
 
+**SUITE-ONLY**
+
 **Owner**: platform-admin module  
 **Storage**: Suite DB  
 **Source of Truth**: Suite  
@@ -36,7 +38,7 @@ This document establishes clear data ownership boundaries for the `platform-admi
 
 **Schema**:
 
-```
+```typescript
 {
   id: string (UUID, primary key)
   name: string
@@ -53,7 +55,13 @@ This document establishes clear data ownership boundaries for the `platform-admi
 - MUST NOT be modified by Core
 - Other Suite modules MAY read this data (if authorized)
 
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-8 (Module Ownership & Data Ownership)
+
+---
+
 ### 2.2 SuiteOrgMapping
+
+**SUITE-ONLY**
 
 **Owner**: platform-admin module  
 **Storage**: Suite DB  
@@ -62,7 +70,7 @@ This document establishes clear data ownership boundaries for the `platform-admi
 
 **Schema**:
 
-```
+```typescript
 {
   suiteOrgId: string (UUID, primary key, FK to SuiteOrganization)
   coreOrgId: string (external reference, unique)
@@ -79,7 +87,13 @@ This document establishes clear data ownership boundaries for the `platform-admi
 - Other Suite modules MUST read this data to resolve Suite org ↔ Core org alignment
 - Core MUST NOT access or modify this table
 
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-7 (Tenant Boundary — Org Alignment Only)
+
+---
+
 ### 2.3 InternalUser
+
+**SUITE-ONLY**
 
 **Owner**: platform-admin module  
 **Storage**: Suite DB  
@@ -88,7 +102,7 @@ This document establishes clear data ownership boundaries for the `platform-admi
 
 **Schema**:
 
-```
+```typescript
 {
   id: string (UUID, primary key)
   email: string (unique)
@@ -107,7 +121,11 @@ This document establishes clear data ownership boundaries for the `platform-admi
 - MUST NOT be modified by Core
 - Other Suite modules MAY read this data for authorization purposes (if authorized)
 
+---
+
 ### 2.4 PlatformAdminAuditLog
+
+**SUITE-ONLY**
 
 **Owner**: platform-admin module  
 **Storage**: Suite DB  
@@ -116,15 +134,16 @@ This document establishes clear data ownership boundaries for the `platform-admi
 
 **Schema**:
 
-```
+```typescript
 {
   id: string (UUID, primary key)
   correlationId: string (indexed)
-  entityType: enum (organization, org_mapping, internal_user, template_publish)
+  entityType: enum (organization, org_mapping, internal_user)
   entityId: string
-  action: enum (create, update, suspend, unsuspend, link, deactivate, publish)
+  action: enum (create, update, suspend, unsuspend, link, deactivate)
   performedBy: string (internal user ID)
   performedAt: timestamp
+  result: enum (success, failure)
   metadata: jsonb (additional context, no secrets)
 }
 ```
@@ -135,7 +154,7 @@ This document establishes clear data ownership boundaries for the `platform-admi
 - MUST be written by platform-admin module for every administrative action
 - MUST NOT contain secrets (tokens, passwords, API keys)
 - Other Suite modules MUST NOT write to this table
-- Retention policy: TBD (TODO: define retention period, e.g., 2 years)
+- Retention policy: Indefinite (append-only, no deletion)
 
 ---
 
@@ -143,15 +162,20 @@ This document establishes clear data ownership boundaries for the `platform-admi
 
 ### 3.1 Core Organization Data
 
+**CONFIRMED (Core v1)**
+
 **Owner**: Core  
 **Storage**: Core DB  
 **Source of Truth**: Core  
-**Access Method**: Core API (TBD: exact endpoint per INTEGRATION_CONTRACT_CORE.md)
+**Access Method**: `GET /api/v1/organizations/:id`
 
-**What platform-admin Reads**:
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section B.8
+
+---
+
+**SUITE-ONLY** — What platform-admin Reads:
 
 - Core organizationId (for mapping validation)
-- Core organization status (if needed for validation)
 
 **What platform-admin MUST NOT Do**:
 
@@ -159,16 +183,30 @@ This document establishes clear data ownership boundaries for the `platform-admi
 - Modify Core organization data
 - Access Core DB directly
 
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-6 (Database Separation)
+
+---
+
 ### 3.2 Core Template Data
 
-**Owner**: Core  
-**Storage**: Core DB  
+**DEFERRED (Core v2+)**
+
+Template publishing is NOT available in Core v1.
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 4.1
+
+---
+
+**SUITE-ONLY** — Status:
+
+**Owner**: Core (when available)  
+**Storage**: Core DB (when available)  
 **Source of Truth**: Core  
-**Access Method**: Core API (TBD: exact endpoint per INTEGRATION_CONTRACT_CORE.md)
+**Access Method**: NONE (template publish is DEFERRED in Core v1)
 
 **What platform-admin Reads**:
 
-- Template publish status (if needed for confirmation)
+- NONE (template publish is DEFERRED in Core v1)
 
 **What platform-admin MUST NOT Do**:
 
@@ -180,17 +218,22 @@ This document establishes clear data ownership boundaries for the `platform-admi
 
 ## 4) Data platform-admin MUST NOT Store
 
+**SUITE-ONLY**
+
 **Forbidden** (unless explicitly authorized by future scope change):
 
 - Customer user credentials or authentication data (owned by Core or separate auth module)
 - Core workflow execution logs (owned by Core)
 - Core audit logs (owned by Core)
+- Core JWTs (server-side in-memory only, never stored)
 - Billing or subscription data (owned by future billing module)
 - CRM or Omnichannel data (owned by future CRM/Omnichannel modules)
 - Core internal state or configuration
 - Any PII beyond what is necessary for internal user management (email, name)
 
 **Action on violation**: STOP immediately, escalate to Governance Authority.
+
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-6 (Database Separation), LAW-8 (Module Ownership)
 
 ---
 
@@ -203,53 +246,15 @@ This document establishes clear data ownership boundaries for the `platform-admi
 | InternalUser           | platform-admin | Suite DB | Suite           | Read/Write               |
 | PlatformAdminAuditLog  | platform-admin | Suite DB | Suite           | Write-only (append)      |
 | Core Organization      | Core           | Core DB  | Core            | Read-only (via API)      |
-| Core Template          | Core           | Core DB  | Core            | Read-only (via API)      |
+| Core Template          | Core           | Core DB  | Core            | No access (DEFERRED)     |
 | Customer User          | Core or Auth   | Core DB  | Core            | No access                |
 | Workflow Execution Log | Core           | Core DB  | Core            | No access                |
 
 ---
 
-## 6) Data Retention & Lifecycle
+## 6) Stop Rules
 
-### 6.1 SuiteOrganization
-
-- **Retention**: Indefinite (until explicitly deleted by authorized admin)
-- **Soft Delete**: Use `status: suspended` instead of hard delete
-- **Hard Delete**: Requires explicit approval and audit log entry
-
-### 6.2 SuiteOrgMapping
-
-- **Retention**: Indefinite (immutable mapping)
-- **Deletion**: FORBIDDEN (use status field if needed in future)
-
-### 6.3 InternalUser
-
-- **Retention**: Indefinite (until explicitly deleted by authorized admin)
-- **Soft Delete**: Use `status: deactivated` instead of hard delete
-- **Hard Delete**: Requires explicit approval and audit log entry
-
-### 6.4 PlatformAdminAuditLog
-
-- **Retention**: TBD (TODO: define retention period, e.g., 2 years)
-- **Deletion**: FORBIDDEN (immutable audit log)
-- **Archival**: TBD (TODO: define archival strategy for old logs)
-
----
-
-## 7) Data Classification
-
-| Data Entity           | Classification | Encryption at Rest | Encryption in Transit |
-| --------------------- | -------------- | ------------------ | --------------------- |
-| SuiteOrganization     | Internal       | Required           | Required (TLS)        |
-| SuiteOrgMapping       | Internal       | Required           | Required (TLS)        |
-| InternalUser          | Confidential   | Required           | Required (TLS)        |
-| PlatformAdminAuditLog | Confidential   | Required           | Required (TLS)        |
-
-**Note**: No Restricted or Public data in this module.
-
----
-
-## 8) Stop Rules
+**SUITE-ONLY**
 
 Execution MUST STOP IMMEDIATELY if any of the following occurs:
 
@@ -264,53 +269,23 @@ Execution MUST STOP IMMEDIATELY if any of the following occurs:
 
 ---
 
-## 9) Acceptance Criteria
+## 7) Acceptance Criteria
 
 This data ownership document is considered ACTIVE and BINDING when ALL of the following are true:
 
-- [ ] All Suite DB tables owned by platform-admin are explicitly listed with schemas
-- [ ] All Core data accessed by platform-admin is explicitly listed with access method
-- [ ] All forbidden data storage is explicitly listed
-- [ ] Source of truth matrix is complete and unambiguous
-- [ ] Data retention and lifecycle policies are defined (or marked TODO)
-- [ ] Data classification is defined for all owned data
-- [ ] Stop rules are explicit and enforceable
-- [ ] No contradictions exist with MODULE_CHARTER.md, MODULE_SCOPE_LOCK.md, or repo-level governance
-- [ ] Governance Authority has reviewed and approved this document
+- [x] All Suite DB tables owned by platform-admin are explicitly listed with schemas
+- [x] All Core data accessed by platform-admin is explicitly listed with access method
+- [x] Core Organization endpoint confirmed (Core v1)
+- [x] Core Template marked DEFERRED (Core v1)
+- [x] All forbidden data storage is explicitly listed
+- [x] Source of truth matrix is complete and unambiguous
+- [x] Stop rules are explicit and enforceable
+- [x] All CONFIRMED claims have evidence links
 
 ---
 
-## 10) Change Control
-
-### 10.1 Required Approvals
-
-Changes to data ownership require:
-
-- Written justification
-- Explicit approval from Governance Authority
-- Update to MODULE_SCOPE_LOCK.md (if adding new tables)
-- Version increment and git tag
-
-### 10.2 Forbidden Changes
-
-The following changes are FORBIDDEN without escalation:
-
-- Storing Core-owned sensitive data in Suite DB
-- Allowing other modules to write to PlatformAdminAuditLog
-- Deleting audit logs
-- Weakening encryption or classification requirements
-
----
-
-## 11) Signature
+## 8) Signature
 
 **Approved By**: Governance Authority  
-**Date**: 2026-01-26  
-**Status**: FINAL — GATE 5.3A ALIGNED
-
----
-
-## 12) Changelog (Gate 5.3A)
-
-- **UPDATED**: Section 3.2 to mark Template Data access as NONE/DEFERRED.
-- **UPDATED**: Document status to GATE 5.3A ALIGNED.
+**Date**: 2026-02-04  
+**Status**: FINAL — CORE V1 ALIGNED

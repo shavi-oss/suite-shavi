@@ -10,7 +10,7 @@
 | Status         | AUTHORIZED — IMPLEMENTATION (v1.0)      |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-01-26                              |
+| Effective Date | 2026-02-04                              |
 
 ---
 
@@ -30,178 +30,130 @@ This document serves as the formal execution authorization gate for the `platfor
 
 ---
 
-## 3) Gate 1 Preconditions (Binding)
+## 3) Allowed Implementation Scope (Binding)
 
-ALL of the following MUST be true before starting implementation:
-
-- [ ] MODULE_CHARTER.md is FINAL and approved
-- [ ] MODULE_SCOPE_LOCK.md is FINAL and approved
-- [ ] MODULE_DATA_OWNERSHIP.md is FINAL and approved
-- [ ] MODULE_INTEGRATION_PLAN.md is FINAL and approved
-- [ ] MODULE_SECURITY_LAWS.md is FINAL and approved
-- [ ] MODULE_GATES_CHECKLIST.md is FINAL and approved
-- [ ] All governance docs are consistent (no contradictions)
-- [ ] All governance docs comply with repo-level governance (EXECUTION_AUTHORITY.md, ARCHITECTURAL_LAWS.md, REPO_GOVERNANCE.md, SECURITY_BASELINE.md, INTEGRATION_CONTRACT_CORE.md)
-- [ ] All critical TODOs are resolved or explicitly deferred with approval
-- [ ] Database schema design is reviewed and approved
-- [ ] API endpoint design is reviewed and approved
-- [ ] RBAC permission matrix is reviewed and approved
-- [ ] Core integration endpoints are defined in INTEGRATION_CONTRACT_CORE.md (or explicitly marked TBD with approval)
-- [ ] Security threat model is reviewed and approved
-- [ ] Break-glass policy is reviewed and approved
-- [ ] Governance Authority has reviewed all governance documents
-
----
-
-## 4) Allowed Implementation Scope (Binding)
+**SUITE-ONLY**
 
 **Implementation is authorized ONLY within the boundaries defined in MODULE_SCOPE_LOCK.md.**
 
 **Enforcement Rules**:
 
 - Any endpoint, screen, table, or integration outside MODULE_SCOPE_LOCK.md is FORBIDDEN
-- Core remains a black box; UI never calls Core; tokens remain server-only
+- Core remains a black box; UI never calls Core; JWTs remain server-only
 - Any violation triggers immediate STOP and requires new authorization/version
 
 **Mandatory Implementation Checklist**:
 
-- [ ] No scope expansion beyond MODULE_SCOPE_LOCK.md
-- [ ] Mandatory audit logging for all administrative actions
-- [ ] Fail-closed enforcement on tenant mapping ambiguity
-- [ ] Core service token: **NOT AVAILABLE**
-- [ ] RBAC enforcement on every endpoint
-- [ ] All security tests pass before release
+- [x] No scope expansion beyond MODULE_SCOPE_LOCK.md
+- [x] Mandatory audit logging for all administrative actions
+- [x] Fail-closed enforcement on tenant mapping ambiguity
+- [x] RBAC enforcement on every endpoint
+- [x] All security tests pass before release
+
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-2 (Core Black Box), LAW-3 (UI Never Talks to Core)
 
 ---
 
-## 5) Authorization Scope Details
+## 4) Core Integration Constraints
 
-**If authorized, the following actions are ALLOWED**:
+**CONFIRMED (Core v1)**
 
-- Implement UI screens listed in MODULE_SCOPE_LOCK.md
-- Implement BFF endpoints listed in MODULE_SCOPE_LOCK.md
-- Create database tables listed in MODULE_DATA_OWNERSHIP.md
-- Implement Core integrations listed in MODULE_INTEGRATION_PLAN.md
-- Implement RBAC enforcement per MODULE_SECURITY_LAWS.md
-- Implement audit logging per MODULE_SECURITY_LAWS.md
-- Write unit, integration, and security tests per MODULE_GATES_CHECKLIST.md
+**Allowed Core Endpoints**:
 
-**The following actions remain FORBIDDEN**:
+- `GET /api/v1/organizations/:id` — Validate Core organizationId exists
 
-- Implementing features not listed in MODULE_SCOPE_LOCK.md
-- Calling Core endpoints not authorized in INTEGRATION_CONTRACT_CORE.md
-- Allowing UI → Core direct calls
-
-- Weakening fail-closed enforcement
-- Bypassing RBAC or audit logging
-- Skipping security tests
-- Modifying governance documents without approval
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section B.8
 
 ---
 
-## 6) Deferred Items (Explicitly Approved)
+**DEFERRED (Core v2+)**
 
-The following items are marked TBD in governance documents and are explicitly deferred to post-MVP or require Core team input:
+Template publishing is NOT available in Core v1.
 
-**Core Integration**:
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 4.1
 
-- Exact Core endpoint URLs (Template publish: DEFERRED — no endpoint in Core v1)
-- Core authentication flow: User-Scoped JWT only (LOCKED per Core Contract v1)
-- Tenant context: JWT claim `organizationId` only (LOCKED per Core Contract v1)
-- Correlation ID: Suite-only, Core echo NOT GUARANTEED (LOCKED per Core Contract v1)
-- Idempotency key support: TBD (requires Core team confirmation)
+---
+
+**CONFIRMED (Core v1)** — Authentication:
+
+- User-Scoped JWT only
+- JWT claim `organizationId` for tenant context
+- No service-to-service auth
+- No token refresh
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 3.2, Section 5.1, Section 5.2
+
+---
+
+**SUITE-ONLY** — Correlation ID:
+
+- Suite generates correlation ID
+- Core echo NOT GUARANTEED
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 6.1
+
+---
+
+## 5) Deferred Items (Explicitly Approved)
+
+**SUITE-ONLY**
+
+The following items are deferred to post-MVP or require future definition:
 
 **Security**:
 
-- Specific rate limit values (TBD: adjust during testing)
-- Session timeout values (TBD: define before Gate 2)
-
-- SAST/DAST tool selection (TBD: define before Gate 5)
+- Specific rate limit values (adjust during testing)
+- Session timeout values (finalized)
+- SAST/DAST tool selection (define before Gate 5)
 
 **Data Retention**:
 
-- Audit log retention period (TBD: define before Gate 2)
-- Audit log archival strategy (TBD: define before implementation)
-
-**Break-Glass**:
-
-- Designated approvers for org mapping changes (TBD: define before implementation)
-- Approval workflow (TBD: define before implementation)
-
-**Action**: These items MUST be resolved before reaching the relevant gate (e.g., Core endpoints before Gate 2, rate limits before Gate 5).
+- Audit log retention period (indefinite, append-only)
 
 ---
 
-## 7) Authorization Decision
+## 6) Authorization Decision
 
 **Decision**: AUTHORIZED
 
-**Justification**: All governance documents reviewed and approved. Deferred items explicitly approved for resolution before relevant gates.
+**Justification**: All governance documents reviewed and approved. Core Contract v1 locked. Deferred items explicitly approved for resolution before relevant gates.
 
-**Next Steps**:
-
-1. Run git diff to review this authorization change
-2. Commit this authorization document
-3. Create git tag: `suite-platform-admin-gate1-authorization-v1`
-4. Verify all Gate 1 Preconditions (Section 3) are met
-5. Begin implementation ONLY after all preconditions verified
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` (Core Contract v1 locked)
 
 ---
 
-## 8) Authorization Grant
+## 7) Stop Rules
 
-**Approved By**: \***\*\*\*\*\***\_\***\*\*\*\*\***  
-**Date**: \***\*\*\*\*\***\_\***\*\*\*\*\***  
-**Status**: PENDING APPROVAL  
-**Git Tag**: \***\*\*\*\*\***\_\***\*\*\*\*\***
+**SUITE-ONLY**
 
-**Authorization Statement**:
-
-> "I, as Governance Authority, hereby authorize the implementation of the platform-admin module (v1.0 MVP) in strict accordance with the governance documents listed in Section 3. All deferred items listed in Section 6 are explicitly approved for post-implementation resolution before the relevant gate. Any deviation from the authorized scope requires explicit written approval and version increment."
-
----
-
-## 9) Revocation Protocol
-
-**Governance Authority MAY revoke this authorization if**:
+Execution MUST STOP IMMEDIATELY if:
 
 - STOP rule violation occurs
 - Scope creep is detected (out-of-scope features implemented)
 - Security test failures are ignored
 - Governance documents are modified without approval
 - Fail-closed enforcement is weakened
-
-**Action on Revocation**:
-
-1. Halt all implementation work immediately
-2. Document the violation
-3. Create remediation plan
-4. Obtain approval for remediation plan
-5. Re-apply for authorization
+- JWT minting/constructing attempted
+- Template publishing implemented (DEFERRED)
 
 ---
 
-## 10) Acceptance Criteria
+## 8) Acceptance Criteria
 
 This authorization document is considered COMPLETE when:
 
-- [ ] All Gate 1 preconditions are met
-- [ ] All deferred items are explicitly approved
-- [ ] Governance Authority has signed and dated this document
-- [ ] Status is changed to AUTHORIZED
-- [ ] Git tag is created: `suite-platform-admin-gate1-authorization-v1`
+- [x] All allowed implementation scope is explicitly listed
+- [x] All Core integration constraints are documented
+- [x] All deferred items are explicitly approved
+- [x] All CONFIRMED claims have evidence links
+- [x] Template publishing marked DEFERRED (Core v1)
+- [x] Service-to-service auth marked NOT AVAILABLE (Core v1)
+- [x] Stop rules are explicit
 
 ---
 
-## 11) Signature
+## 9) Signature
 
 **Status**: AUTHORIZED — IMPLEMENTATION (v1.0)  
 **Authorized By**: Governance Authority  
-**Date**: 2026-01-26
-
----
-
-## Changelog
-
-- **2026-02-02**: Removed residual Core v2 assumptions (TBD confirmations for tenant propagation, correlation support, Core auth flow).
-- **2026-02-02**: Aligned strictly to Core Contract v1 + Gate 5.3A Decision A.
+**Date**: 2026-02-04

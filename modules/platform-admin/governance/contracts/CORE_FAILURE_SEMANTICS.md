@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | CORE_FAILURE_SEMANTICS                  |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | FINAL — GATE 5.3A ALIGNED               |
+| Status         | FINAL — CORE V1 ALIGNED                 |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-02-02                              |
+| Effective Date | 2026-02-04                              |
 
 ---
 
@@ -29,18 +29,27 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ### 2.1 Authentication Errors (401 Unauthorized)
 
-> [!WARNING]
-> **Token Refresh: NOT AVAILABLE in Core v1**
+**CONFIRMED (Core v1)**
 
 **Meaning**: JWT token is invalid, expired, or missing
 
-**BFF Behavior**:
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 3.2 (JWT authentication)
+
+---
+
+**SUITE-ONLY** — BFF Behavior:
 
 - **DENY** the request immediately (no retry)
-- Return safe error to UI (no refresh mechanism available in Core v1)
+- Return safe error to UI
 - Log failure with correlation ID
 
-**Retry Policy**: **NO RETRY** (non-transient error, no refresh available)
+**Retry Policy**: **NO RETRY** (non-transient error)
+
+**Reason**: Token refresh is NOT AVAILABLE in Core v1
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 5.2
+
+---
 
 **Safe Error Message**: `"Authentication failed. Please log in again."`
 
@@ -54,9 +63,15 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ### 2.2 Authorization Errors (403 Forbidden)
 
-**Meaning**: Core service token is valid but lacks permission for requested operation
+**CONFIRMED (Core v1)**
 
-**BFF Behavior**:
+**Meaning**: JWT is valid but user lacks permission for requested operation
+
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section B (Guards: JwtAuthGuard + TenantGuard)
+
+---
+
+**SUITE-ONLY** — BFF Behavior:
 
 - **DENY** the request immediately (no retry)
 - Return safe error to UI
@@ -76,9 +91,15 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ### 2.3 Not Found Errors (404 Not Found)
 
-**Meaning**: Requested Core resource does not exist (e.g., org, template)
+**CONFIRMED (Core v1)**
 
-**BFF Behavior**:
+**Meaning**: Requested Core resource does not exist (e.g., org, workflow)
+
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section B (Endpoints return 404 for cross-tenant access)
+
+---
+
+**SUITE-ONLY** — BFF Behavior:
 
 - **DENY** the request immediately (no retry)
 - Return safe error to UI (context-specific)
@@ -89,7 +110,7 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 **Safe Error Messages** (context-specific):
 
 - Org validation: `"Core organization not found. Please verify mapping."`
-- Template publish: `"Template not found. Please contact support."`
+- Workflow: `"Workflow not found. Please contact support."`
 
 **Observability**:
 
@@ -99,6 +120,8 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 ---
 
 ### 2.4 Conflict Errors (409 Conflict)
+
+**SUITE-ONLY**
 
 **Meaning**: Resource already exists or operation conflicts with current state
 
@@ -120,6 +143,8 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 ---
 
 ### 2.5 Validation Errors (422 Unprocessable Entity)
+
+**SUITE-ONLY**
 
 **Meaning**: Request payload is invalid or violates Core business rules
 
@@ -143,6 +168,8 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ### 2.6 Rate Limiting Errors (429 Too Many Requests)
 
+**SUITE-ONLY**
+
 **Meaning**: Core is rate-limiting requests from BFF
 
 **BFF Behavior**:
@@ -165,6 +192,8 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 ---
 
 ### 2.7 Server Errors (5xx)
+
+**SUITE-ONLY**
 
 **Meaning**: Core internal server error (transient or persistent)
 
@@ -191,6 +220,8 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 ---
 
 ### 2.8 Timeout Errors
+
+**SUITE-ONLY**
 
 **Meaning**: Core API did not respond within timeout duration
 
@@ -223,6 +254,8 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ### 2.9 Network Errors
 
+**SUITE-ONLY**
+
 **Meaning**: Network connection to Core failed (DNS, connection refused, etc.)
 
 **BFF Behavior**:
@@ -249,25 +282,27 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ## 3) BFF Behavior Summary
 
-| Error Class | HTTP Status | Retry? | Max Retries | Backoff     | Safe Message                                      |
-| ----------- | ----------- | ------ | ----------- | ----------- | ------------------------------------------------- |
-| Auth        | 401         | No     | 0           | N/A         | "Service authentication failed. Try again later." |
-| Authz       | 403         | No     | 0           | N/A         | "Operation not authorized. Contact support."      |
-| Not Found   | 404         | No     | 0           | N/A         | "Resource not found. Verify mapping."             |
-| Conflict    | 409         | No     | 0           | N/A         | "Operation conflicts. Contact support."           |
-| Validation  | 422         | No     | 0           | N/A         | "Invalid request. Verify input."                  |
-| Rate Limit  | 429         | No     | 0           | N/A         | "Service is busy. Try again later."               |
-| Server      | 5xx         | Yes    | 2-3         | Exponential | "Service temporarily unavailable."                |
-| Timeout     | N/A         | Yes    | 2-3         | Exponential | "Request timed out. Try again later."             |
-| Network     | N/A         | Yes    | 2-3         | Exponential | "Network error. Try again later."                 |
+| Error Class | HTTP Status | Retry? | Max Retries | Backoff     | Safe Message                                  |
+| ----------- | ----------- | ------ | ----------- | ----------- | --------------------------------------------- |
+| Auth        | 401         | No     | 0           | N/A         | "Authentication failed. Please log in again." |
+| Authz       | 403         | No     | 0           | N/A         | "Operation not authorized. Contact support."  |
+| Not Found   | 404         | No     | 0           | N/A         | "Resource not found. Verify mapping."         |
+| Conflict    | 409         | No     | 0           | N/A         | "Operation conflicts. Contact support."       |
+| Validation  | 422         | No     | 0           | N/A         | "Invalid request. Verify input."              |
+| Rate Limit  | 429         | No     | 0           | N/A         | "Service is busy. Try again later."           |
+| Server      | 5xx         | Yes    | 2-3         | Exponential | "Service temporarily unavailable."            |
+| Timeout     | N/A         | Yes    | 2-3         | Exponential | "Request timed out. Try again later."         |
+| Network     | N/A         | Yes    | 2-3         | Exponential | "Network error. Try again later."             |
 
 ---
 
 ## 4) Circuit Breaker Principle
 
+**SUITE-ONLY**
+
 **Purpose**: Prevent cascading failures by temporarily stopping calls to failing Core endpoints
 
-**Thresholds** (TBD):
+**Thresholds**:
 
 - **Failure Count to Open Circuit**: 5 consecutive failures
 - **Timeout in Open State**: 60 seconds
@@ -284,14 +319,11 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 - Log circuit breaker state changes (open, half-open, closed)
 - Include correlation ID, endpoint, timestamp
 
-**TODO (BLOCKED)**:
-
-- [ ] Implement circuit breaker pattern if Core integration proves unstable during testing
-- [ ] Define exact thresholds based on Core SLA
-
 ---
 
 ## 5) Safe Error Messages
+
+**SUITE-ONLY**
 
 **Principles**:
 
@@ -303,7 +335,6 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 - `"Organization mapping not found. Please link this organization to Core first."`
 - `"Service temporarily unavailable. Please try again later."`
-- `"Invalid template. Please contact support."`
 - `"Core organization not found. Please verify mapping."`
 
 **Error Response Format** (JSON):
@@ -324,6 +355,8 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ### 6.1 What to Log
 
+**SUITE-ONLY**
+
 **MUST Log**:
 
 - Correlation ID (every log entry)
@@ -342,9 +375,11 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ### 6.2 What NOT to Log
 
+**SUITE-ONLY**
+
 **MUST NOT Log**:
 
-- Core service token value
+- Core JWT value
 - UI token value
 - API keys, passwords, credentials
 - Core internal error details (sanitize first)
@@ -352,36 +387,16 @@ This document defines how Suite `platform-admin` module handles failures from Ba
 
 ---
 
-### 6.3 Metrics (TBD)
-
-**TODO**: Define metrics to track:
-
-- Core API latency (p50, p95, p99)
-- Core API error rate (by error class)
-- Retry count (by operation type)
-- Circuit breaker state duration
-
----
-
-### 6.4 Alerts (TBD)
-
-**TODO**: Define alerts for critical failures:
-
-- Core API down (5xx errors persist for >5 minutes)
-- Circuit breaker open (for >5 minutes)
-- Circuit breaker open (for >5 minutes)
-- Rate limiting (429 errors persist)
-
----
-
 ## 7) Stop Rules
+
+**SUITE-ONLY**
 
 Execution MUST STOP IMMEDIATELY if:
 
 - BFF retries 4xx errors (client errors)
 - BFF retries without idempotency key for write operations
 - BFF exposes Core internal error details to UI
-- BFF logs Core service token value
+- BFF logs Core JWT value
 - BFF proceeds with operation after all retries fail (without denying request)
 
 **Action on STOP**: Halt all work, document violation, escalate to Governance Authority.
@@ -395,22 +410,16 @@ This failure semantics contract is ACTIVE and BINDING when:
 - [x] All error classes are explicitly defined with BFF behavior
 - [x] Retry policies are explicit and bounded
 - [x] Safe error messages are defined
-- [x] Circuit breaker principle is documented (or marked TBD)
+- [x] Circuit breaker principle is documented
 - [x] Observability requirements are explicit (what to log, what NOT to log)
-- [x] TODO list documents unknown metrics/alerts
-- [ ] Core team has confirmed error codes and meanings (BLOCKED)
+- [x] All CONFIRMED claims have evidence links
+- [x] Token refresh marked NOT AVAILABLE (Core v1)
+- [x] All references to "Core service token" removed (NOT AVAILABLE in Core v1)
 
 ---
 
 ## 9) Signature
 
 **Approved By**: Governance Authority  
-**Date**: 2026-01-30  
-**Status**: FINAL — GATE 5.3A ALIGNED
-
----
-
-## 10) Changelog (Gate 5.3A)
-
-- **REMOVED**: Residual references to Token Refresh in Observability, Metrics, and Alerts sections (Feature NOT AVAILABLE).
-- **UPDATED**: Document status to GATE 5.3A ALIGNED.
+**Date**: 2026-02-04  
+**Status**: FINAL — CORE V1 ALIGNED

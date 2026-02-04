@@ -10,7 +10,7 @@
 | Status         | FINAL — GATE 5.3A ALIGNED               |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-02-02                              |
+| Effective Date | 2026-02-04                              |
 
 ---
 
@@ -181,14 +181,20 @@ The following failures MUST NEVER be retried automatically:
 
 **System Action**: Rollback operation. Log failure. Return error to UI. Do NOT retry operation without resolving audit log issue.
 
-### 4.6 Idempotency Violations
+### 4.6 Idempotency Violations (Principle — Not Applicable in Core v1 MVP)
 
-- Non-idempotent operation (e.g., create resource) without idempotency key
-- Duplicate request detected
+> [!NOTE]
+> Core v1 MVP uses read-only Core endpoint (`GET /api/v1/organizations/:id`).
+> Idempotency requirements apply only if write operations are introduced in future Core versions.
+
+**Principle** (for future write operations):
+
+- Non-idempotent operation without idempotency key → Do NOT retry
+- Duplicate request detected → Return error
 
 **Rationale**: Retrying non-idempotent operations may result in duplicate resources or inconsistent state.
 
-**System Action**: Log failure. Return error to UI. Do NOT retry without idempotency safeguards.
+**System Action** (if applicable): Log failure. Return error to UI. Do NOT retry without idempotency safeguards.
 
 ---
 
@@ -214,7 +220,7 @@ Every failure MUST be logged to `PlatformAdminAuditLog` with the following field
 
 **MUST NOT Log**:
 
-- Core service tokens
+- Core JWTs (NOT AVAILABLE: service tokens in Core v1)
 - Suite UI tokens
 - Passwords or credentials
 - Sensitive business data
@@ -290,9 +296,9 @@ The following changes are FORBIDDEN without escalation:
 
 ## 8) Signature
 
-**Prepared By**: Principal Software Architect & Governance Authority  
-**Date**: 2026-01-27  
-**Status**: FINAL — GATE 5.3A ALIGNED
+**Prepared By**: Governance Authority  
+**Date**: 2026-02-04  
+**Status**: FINAL — CORE V1 ALIGNED
 
 ---
 

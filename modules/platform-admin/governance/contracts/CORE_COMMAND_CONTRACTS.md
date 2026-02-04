@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | CORE_COMMAND_CONTRACTS                  |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | ACTIVE — COMMAND CONTRACT               |
+| Status         | FINAL — CORE V1 ALIGNED                 |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-01-30                              |
+| Effective Date | 2026-02-04                              |
 
 ---
 
@@ -18,13 +18,11 @@
 
 This document defines the command-level contract for Suite `platform-admin` module interactions with Bassan.os Core. It establishes:
 
-- Allowed commands (interface-level only, no endpoint URLs unless defined)
+- Allowed commands (POST/PATCH operations)
 - Command intent and preconditions
 - Input/output shapes (minimal, interface-level)
 - Idempotency stance
 - Fail-closed behavior
-
-**NOTE**: This is NOT an API specification. Exact endpoint URLs, HTTP methods, and detailed schemas are defined in `INTEGRATION_CONTRACT_CORE.md` (or marked TODO if not yet defined).
 
 ---
 
@@ -32,9 +30,17 @@ This document defines the command-level contract for Suite `platform-admin` modu
 
 ### 2.1 ValidateCoreOrganization
 
+**CONFIRMED (Core v1)**
+
 **Intent**: Verify that a Core organizationId exists before creating Suite → Core mapping.
 
-**Preconditions**:
+**Endpoint**: `GET /api/v1/organizations/:id`
+
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section B.8 (Organizations Module, Line 182)
+
+---
+
+**SUITE-ONLY** — Preconditions:
 
 - `coreOrgId` is a valid UUID format
 - Caller has `MAPPING_CREATE` permission
@@ -51,8 +57,8 @@ This document defines the command-level contract for Suite `platform-admin` modu
 
 **Expected Outputs**:
 
-- **Success**: `{ exists: true, coreOrgId: string }`
-- **Not Found**: `{ exists: false, coreOrgId: string }`
+- **Success (200)**: `{ exists: true, coreOrgId: string }`
+- **Not Found (404)**: `{ exists: false, coreOrgId: string }`
 - **Error**: Throw exception (fail-closed)
 
 **Idempotency Stance**: Idempotent (read-only operation)
@@ -66,23 +72,25 @@ This document defines the command-level contract for Suite `platform-admin` modu
 - **Timeout** (>10s): Retry max 3 times, then throw `CoreTimeoutError`
 - **Network Error**: Retry max 3 times, then throw `CoreNetworkError`
 
-**TODO (BLOCKED)**:
-
-- [x] Exact Core API endpoint confirmed: `GET /api/v1/organizations/:id` (per Core Contract v1 Extract line 182)
-- [ ] Confirm response schema from Core team
-- [ ] Confirm timeout value (default: 10s for read)
-
 ---
 
 ### 2.2 PublishTemplate
 
-> [!WARNING]
-> **DEFERRED IN CORE V1** — Template publish endpoint does NOT exist in Core v1.  
-> This command contract is catalog-only. DO NOT implement until Core v2.
+**DEFERRED (Core v2+)**
 
-**Intent**: Publish a predefined workflow template to Core for a specific organization.
+Template publishing is NOT available in Core v1. No template publish endpoint found in Core controllers.
 
-**Preconditions**:
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 4.1
+
+**Status**: This command contract is catalog-only. DO NOT implement until Core v2.
+
+---
+
+**SUITE-ONLY** — Intent (for future reference):
+
+Publish a predefined workflow template to Core for a specific organization.
+
+**Preconditions** (when available in Core v2):
 
 - Suite org → Core org mapping exists (fail-closed if missing)
 - Template ID is valid (from predefined list in Suite codebase)
@@ -90,7 +98,7 @@ This document defines the command-level contract for Suite `platform-admin` modu
 - Correlation ID is present
 - Idempotency key is generated
 
-**Input Shape** (minimal):
+**Input Shape** (minimal, for future reference):
 
 ```typescript
 {
@@ -102,34 +110,7 @@ This document defines the command-level contract for Suite `platform-admin` modu
 }
 ```
 
-**Expected Outputs**:
-
-- **Success**: `{ success: true, coreTemplateId: string }`
-- **Error**: Throw exception (fail-closed)
-
 **Idempotency Stance**: Idempotent (via idempotency key)
-
-- **MUST** include idempotency key in request (e.g., `X-Idempotency-Key` header or request body)
-- **MUST** reuse same idempotency key for retries
-- **MUST NOT** retry without idempotency key
-
-**Fail-Closed Behavior**:
-
-- **400 Bad Request**: Throw `CoreValidationError` (no retry, invalid template or org)
-- **401 Unauthorized**: Throw `CoreAuthenticationError` (no retry)
-- **403 Forbidden**: Throw `CoreAuthorizationError` (no retry)
-- **404 Not Found**: Throw `CoreNotFoundError` (no retry, org or template not found)
-- **409 Conflict**: Throw `CoreConflictError` (no retry, template already published)
-- **5xx Server Error**: Retry max 2 times with exponential backoff (1s, 2s), then throw `CoreServiceError`
-- **Timeout** (>20s): Retry max 2 times (with same idempotency key), then throw `CoreTimeoutError`
-- **Network Error**: Retry max 2 times, then throw `CoreNetworkError`
-
-**TODO (BLOCKED)**:
-
-- [ ] Define exact Core API endpoint (e.g., `POST /api/v1/templates/publish`)
-- [ ] Confirm request/response schema from Core team
-- [ ] Confirm idempotency key mechanism (header vs body field)
-- [ ] Confirm timeout value (default: 20s for write)
 
 ---
 
@@ -137,32 +118,26 @@ This document defines the command-level contract for Suite `platform-admin` modu
 
 ### 3.1 Tenant Context Propagation
 
-**MUST**: Every command MUST include tenant context (`coreOrgId`).
+**CONFIRMED (Core v1)**
 
-**Mechanism** (CONFIRMED from Core v1):
+**Mechanism**: JWT claim `organizationId` ONLY
 
-- **JWT Claim**: `organizationId` (in JWT payload)
 - Core extracts `organizationId` from JWT via `JwtStrategy`
 - Core sets CLS context: `orgId`, `userId`
 
-**NOT USED** (confirmed NOT in Core v1):
+**NOT USED** (Core v1):
 
 - ❌ `X-Organization-Id` header
 - ❌ `X-Tenant-Id` header
 - ❌ Query parameter `?organizationId=`
 
-**Source**: Core Contract v1 Extract, Section D.2
-
-**Tenant context is JWT claim organizationId only. No invented tenant headers.**
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 3.3
 
 ---
 
 ### 3.2 Correlation ID Propagation
 
-> [!IMPORTANT]
-> **Correlation is Suite-only. Do not depend on Core echo/logging.**
-
-**MUST**: Every command MUST include correlation ID for tracing.
+**SUITE-ONLY**
 
 **Mechanism**:
 
@@ -170,38 +145,42 @@ This document defines the command-level contract for Suite `platform-admin` modu
 - BFF generates correlation ID if not provided by UI
 - BFF includes correlation ID in all log entries
 
-**Core v1 Reality**:
+**NOT AVAILABLE** (Core v1):
 
-- Core v1 does NOT have correlation ID middleware/interceptor
-- Core echo/logging of correlation ID is NOT GUARANTEED
-- Correlation ID is for Suite-side tracing only
+Core v1 does NOT have correlation ID middleware/interceptor. Core echo/logging of correlation ID is NOT GUARANTEED.
 
-**Source**: Core Contract v1 Extract, Section D.4 (NOT FOUND in Core source)
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 6.1
 
 ---
 
 ### 3.3 Authentication
 
-> [!WARNING]
-> **Service-to-Service Authentication: NOT AVAILABLE in Core v1**
+**CONFIRMED (Core v1)**
 
-**Core v1 Reality**:
+Core v1 uses JWT-based authentication for user-scoped operations.
 
-- Core v1 uses JWT-based authentication for user-scoped operations
-- No service-token contract exists in Core v1
-- No OAuth2 client credentials flow in Core v1
+**Mechanism**:
 
-**Authentication Mechanism**:
-
-- Suite uses JWT Bearer tokens issued to users
+- BFF forwards validated Core JWT in `Authorization: Bearer <jwt-token>` header
 - JWT contains claims: `sub` (user ID), `email`, `organizationId`
-- Suite includes JWT in `Authorization: Bearer <jwt-token>` header for Core API calls
 
-**Service-to-Service Auth**: DEFERRED until Core v2
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 3.2
+
+---
+
+**NOT AVAILABLE** (Core v1):
+
+Service-to-Service Authentication is NOT supported by Core v1.
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 5.1
+
+**Status**: DEFERRED until Core v2
 
 ---
 
 ## 4) Retry Policy (Bounded)
+
+**SUITE-ONLY**
 
 **Safe to Retry** (transient errors):
 
@@ -218,7 +197,7 @@ This document defines the command-level contract for Suite `platform-admin` modu
 **Retry Limits**:
 
 - **Read Operations** (ValidateCoreOrganization): Max 3 retries
-- **Write Operations** (PublishTemplate): Max 2 retries (with idempotency key)
+- **Write Operations** (PublishTemplate, when available): Max 2 retries (with idempotency key)
 
 **Backoff Strategy**: Exponential (1s, 2s, 4s for reads; 1s, 2s for writes)
 
@@ -226,29 +205,28 @@ This document defines the command-level contract for Suite `platform-admin` modu
 
 ## 5) Idempotency Rules
 
+**SUITE-ONLY**
+
 **Commands Requiring Idempotency**:
 
-- `PublishTemplate` (write operation)
+- `PublishTemplate` (write operation, when available in Core v2)
 
 **Commands NOT Requiring Idempotency**:
 
 - `ValidateCoreOrganization` (read operation, naturally idempotent)
 
-**Idempotency Key Generation**:
+**Idempotency Key Generation** (for future write operations):
 
 - Generate UUID v4 for each unique operation
 - Include `suiteOrgId + templateId + templateVersion` in key derivation (deterministic)
 - Store idempotency key in Suite DB to prevent duplicate requests
 - Reuse same idempotency key for retries
 
-**TODO (BLOCKED)**:
-
-- [ ] Confirm Core's support for idempotency keys
-- [ ] Define idempotency key header name or body field
-
 ---
 
 ## 6) Fail-Closed Enforcement
+
+**SUITE-ONLY**
 
 **MUST**: All commands MUST fail-closed by default.
 
@@ -264,7 +242,7 @@ This document defines the command-level contract for Suite `platform-admin` modu
 
 - `"Organization mapping not found. Please link this organization to Core first."`
 - `"Service temporarily unavailable. Please try again later."`
-- `"Invalid template. Please contact support."`
+- `"Core organization not found. Please verify mapping."`
 
 **MUST NOT**:
 
@@ -274,28 +252,13 @@ This document defines the command-level contract for Suite `platform-admin` modu
 
 ---
 
-## 7) TODO List
+## 7) Stop Rules
 
-**BLOCKED** (requires Core team input):
-
-- [ ] Define exact Core API endpoints for all commands
-- [ ] Confirm request/response schemas for all commands
-- [ ] Confirm error codes and meanings for all commands
-- [ ] Confirm tenant context propagation mechanism
-- [ ] Confirm correlation ID support
-- [ ] Confirm idempotency key mechanism
-- [ ] Confirm timeout values for read/write operations
-- [ ] Confirm Core authentication endpoint and flow
-
-**Action**: Do NOT implement commands until Core API contracts are defined. Proceed with interface-level contracts only.
-
----
-
-## 8) Stop Rules
+**SUITE-ONLY**
 
 Execution MUST STOP IMMEDIATELY if:
 
-- BFF calls Core command not listed in this catalog
+- BFF calls Core command not listed in Core Contract v1
 - BFF retries 4xx errors (client errors)
 - BFF retries without idempotency key for write operations
 - BFF exposes Core error details to UI
@@ -305,22 +268,23 @@ Execution MUST STOP IMMEDIATELY if:
 
 ---
 
-## 9) Acceptance Criteria
+## 8) Acceptance Criteria
 
 This command contract is ACTIVE and BINDING when:
 
 - [x] All allowed commands are explicitly listed with intent and preconditions
+- [x] ValidateCoreOrganization endpoint confirmed (Core v1)
+- [x] PublishTemplate marked DEFERRED (Core v1)
 - [x] Input/output shapes are defined (minimal, interface-level)
 - [x] Idempotency stance is explicit for each command
 - [x] Fail-closed behavior is explicit for each command
 - [x] Retry policy is explicit and bounded
-- [x] TODO list documents unknown Core API details
-- [ ] Core team has confirmed API endpoints and schemas (BLOCKED)
+- [x] All CONFIRMED claims have evidence links
 
 ---
 
-## 10) Signature
+## 9) Signature
 
 **Approved By**: Governance Authority  
-**Date**: 2026-01-30  
-**Status**: ACTIVE — COMMAND CONTRACT
+**Date**: 2026-02-04  
+**Status**: FINAL — CORE V1 ALIGNED

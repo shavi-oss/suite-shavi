@@ -44,12 +44,11 @@ Gate 5.3A exists to resolve these TODOs by locking the Core integration contract
 
 **Allowed Changes**:
 
-- Define Core template publish endpoint (URL pattern, HTTP method, request/response schemas)
-- Specify authentication headers (Core service token, server-only enforcement)
-- Lock tenant context propagation rules (organizationId mapping, header name)
-- Define retry semantics (max retries, backoff strategy, idempotency requirements)
-- Specify timeouts (read timeout, write timeout)
-- Define correlation ID header (name, format, propagation rules)
+Allowed Changes (Docs-Only, Gate 5.3A):
+- Remove residual Core v2 assumptions (service tokens, refresh, invented publish endpoints)
+- Lock Core v1 integration semantics: **User-scoped JWT only**, forwarded as `Authorization: Bearer <jwt-token>`
+- Mark Template Publish as **DEFERRED / NOT AVAILABLE in Core v1**
+- Fix spec drift and contract wording drift only
 - Remove all TODOs from Section 12 of `INTEGRATION_CONTRACT_CORE.md`
 
 **Allowed Actions**:

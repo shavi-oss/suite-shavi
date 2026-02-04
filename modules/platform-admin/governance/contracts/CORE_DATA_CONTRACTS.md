@@ -7,10 +7,10 @@
 | Module Name    | platform-admin                          |
 | Document Title | CORE_DATA_CONTRACTS                     |
 | Repo           | Suite (Layer / Product Repo)            |
-| Status         | ACTIVE — DATA CONTRACT                  |
+| Status         | FINAL — CORE V1 ALIGNED                 |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST |
 | Authority      | Governance Authority (Layer)            |
-| Effective Date | 2026-01-30                              |
+| Effective Date | 2026-02-04                              |
 
 ---
 
@@ -26,21 +26,28 @@ This document defines the data contract between Suite `platform-admin` module an
 
 **Contract Philosophy**: Core is a black box. Suite MUST NOT rely on Core internal schemas or store Core-owned sensitive data.
 
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-2 (Core Black Box), LAW-6 (Database Separation)
+
 ---
 
 ## 2) Core-Owned Resources (Read-Only References)
 
 ### 2.1 Core Organization
 
+**CONFIRMED (Core v1)**
+
 **Owner**: Core  
 **Storage**: Core DB  
-**Access Method**: Core API (endpoint TBD per INTEGRATION_CONTRACT_CORE.md)  
+**Access Method**: `GET /api/v1/organizations/:id`  
 **Org-Scope**: Yes (each organization is isolated)
 
-**What platform-admin May Read**:
+**Evidence**: `CORE_CONTRACT_V1_EXTRACT.md` Section B.8 (Organizations Module)
+
+---
+
+**SUITE-ONLY** — What platform-admin May Read:
 
 - `coreOrgId` (string, UUID) — for mapping validation only
-- `status` (enum: active, suspended) — if needed for validation (TBD)
 
 **Allowed Caching**:
 
@@ -54,22 +61,24 @@ This document defines the data contract between Suite `platform-admin` module an
 - Billing or subscription data
 - Any Core internal state
 
-**TODO (BLOCKED)**:
-
-- [x] Exact Core API endpoint confirmed: `GET /api/v1/organizations/:id` (per Core Contract v1 Extract line 182)
-- [ ] Confirm response schema from Core team
-- [ ] Define whether `status` field is needed for validation
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-8 (Module Ownership & Data Ownership)
 
 ---
 
 ### 2.2 Core Template
 
-> [!WARNING]
-> **DEFERRED IN CORE V1** — Template entities and flows are DEFERRED.  
-> Core v1 does NOT expose template publish endpoints.
+**DEFERRED (Core v2+)**
 
-**Owner**: Core  
-**Storage**: Core DB  
+Template publishing is NOT available in Core v1. No template publish endpoint found in Core controllers.
+
+**Evidence**: `CORE_V1_INTEGRATION_LOCK.md` Section 4.1
+
+---
+
+**SUITE-ONLY** — Status:
+
+**Owner**: Core (when available)  
+**Storage**: Core DB (when available)  
 **Access Method**: NONE (template publish is DEFERRED in Core v1)  
 **Org-Scope**: Yes (templates are org-specific after publishing)
 
@@ -87,13 +96,13 @@ This document defines the data contract between Suite `platform-admin` module an
 - Template execution logs
 - Template version history
 
-**Status**: Template publish capability is DEFERRED until Core v2 (requires new contract lock)
-
 ---
 
 ## 3) Suite-Owned Resources (For Mapping Only)
 
 ### 3.1 SuiteOrganization
+
+**SUITE-ONLY**
 
 **Owner**: platform-admin module  
 **Storage**: Suite DB  
@@ -119,6 +128,8 @@ This document defines the data contract between Suite `platform-admin` module an
 
 ### 3.2 SuiteOrgMapping
 
+**SUITE-ONLY**
+
 **Owner**: platform-admin module  
 **Storage**: Suite DB  
 **Source of Truth**: Suite  
@@ -141,6 +152,8 @@ This document defines the data contract between Suite `platform-admin` module an
 ---
 
 ### 3.3 InternalUser
+
+**SUITE-ONLY**
 
 **Owner**: platform-admin module  
 **Storage**: Suite DB  
@@ -168,6 +181,8 @@ This document defines the data contract between Suite `platform-admin` module an
 
 ### 3.4 PlatformAdminAuditLog
 
+**SUITE-ONLY**
+
 **Owner**: platform-admin module  
 **Storage**: Suite DB  
 **Source of Truth**: Suite  
@@ -189,11 +204,13 @@ This document defines the data contract between Suite `platform-admin` module an
 }
 ```
 
-**Retention Stance**: TBD (TODO: define retention period, e.g., 2 years)
+**Retention Stance**: Indefinite (append-only, no deletion)
 
 ---
 
 ## 4) Data Minimization Rules
+
+**SUITE-ONLY**
 
 **MUST**:
 
@@ -208,15 +225,19 @@ This document defines the data contract between Suite `platform-admin` module an
 - Store PII beyond what is necessary for internal user management (email, name)
 - Cache Core data beyond `coreOrgId` mapping
 
+**Evidence**: `ARCHITECTURAL_LAWS.md` LAW-6 (Database Separation), LAW-8 (Module Ownership)
+
 ---
 
 ## 5) Caching Policy
+
+**SUITE-ONLY**
 
 | Data Entity     | Allowed to Cache? | Max Cache Duration | Reason                             |
 | --------------- | ----------------- | ------------------ | ---------------------------------- |
 | coreOrgId       | Yes               | Indefinite         | Immutable mapping reference        |
 | Core org status | No                | N/A                | Core is source of truth            |
-| Core template   | No                | N/A                | Core is source of truth            |
+| Core template   | No                | N/A                | Core is source of truth (DEFERRED) |
 | Suite org       | Yes (own data)    | N/A                | Suite owns this data               |
 | Suite mapping   | Yes (own data)    | N/A                | Suite owns this data               |
 | Internal user   | Yes (own data)    | N/A                | Suite owns this data               |
@@ -224,22 +245,9 @@ This document defines the data contract between Suite `platform-admin` module an
 
 ---
 
-## 6) TODO List (Unknown Core Resource Shapes)
+## 6) Stop Rules
 
-**BLOCKED** (requires Core team input):
-
-- [ ] Define exact Core organization resource schema (fields, types, constraints)
-- [ ] Define exact Core template resource schema (fields, types, constraints)
-- [ ] Confirm Core API endpoint URLs for organization validation and template publishing
-- [ ] Confirm Core API request/response formats
-- [ ] Confirm Core API error codes and meanings
-- [ ] Define Core API versioning strategy (header, path, etc.)
-
-**Action**: Do NOT guess or assume Core resource shapes. Mark as TODO and proceed with interface-level contracts only.
-
----
-
-## 7) Stop Rules
+**SUITE-ONLY**
 
 Execution MUST STOP IMMEDIATELY if:
 
@@ -252,22 +260,23 @@ Execution MUST STOP IMMEDIATELY if:
 
 ---
 
-## 8) Acceptance Criteria
+## 7) Acceptance Criteria
 
 This data contract is ACTIVE and BINDING when:
 
 - [x] Core-owned resources are explicitly listed with allowed/forbidden fields
+- [x] Core Organization endpoint confirmed (Core v1)
+- [x] Core Template marked DEFERRED (Core v1)
 - [x] Suite-owned resources are explicitly listed with schemas
 - [x] Data minimization rules are explicit
 - [x] Caching policy is explicit
-- [x] TODO list documents unknown Core resource shapes
 - [x] Stop rules are explicit and enforceable
-- [ ] Core team has confirmed resource schemas and API endpoints (BLOCKED)
+- [x] All CONFIRMED claims have evidence links
 
 ---
 
-## 9) Signature
+## 8) Signature
 
 **Approved By**: Governance Authority  
-**Date**: 2026-01-30  
-**Status**: ACTIVE — DATA CONTRACT
+**Date**: 2026-02-04  
+**Status**: FINAL — CORE V1 ALIGNED

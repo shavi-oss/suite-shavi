@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { PlatformAdminModule } from '../../platform-admin.module';
 import { PrismaService } from '../db/prisma.service';
-import { OrganizationRepository } from '../repositories/organization.repository';
+import { OrganizationRepository } from '../organizations/organization.repository';
 
 describe('PlatformAdmin — Prisma Wiring', () => {
   let module: TestingModule;

@@ -13,7 +13,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { DenyAllGuard } from './guards';
 import { HealthController } from './controllers';
 import { PrismaModule } from './src/db/prisma.module';
-import { OrganizationRepository } from './src/repositories/organization.repository';
+import { OrganizationRepository } from './src/organizations/organization.repository';
 
 @Module({
   imports: [PrismaModule],

@@ -1,0 +1,119 @@
+// Platform Admin Module — Prisma Schema
+// Scope: LOCKED per MODULE_SCOPE_LOCK.md
+// Tables: 4 ONLY (SuiteOrganization, SuiteOrgMapping, InternalUser, PlatformAdminAuditLog)
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../../node_modules/.prisma/client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Table 1: SuiteOrganization
+// Purpose: Store Suite organization records
+// Evidence: MODULE_SCOPE_LOCK.md Section 2.3 (Lines 100-111)
+model SuiteOrganization {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String   @db.VarChar(255)
+  status    OrgStatus @default(active)
+  createdAt DateTime @default(now()) @db.Timestamptz
+  updatedAt DateTime @updatedAt @db.Timestamptz
+  createdBy String   @db.Uuid
+
+  // Relations
+  mapping   SuiteOrgMapping?
+
+  @@map("suite_organizations")
+}
+
+enum OrgStatus {
+  active
+  suspended
+}
+
+// Table 2: SuiteOrgMapping
+// Purpose: Map Suite organizationId to Core organizationId
+// Evidence: MODULE_SCOPE_LOCK.md Section 2.3 (Lines 113-123)
+model SuiteOrgMapping {
+  suiteOrgId String   @id @db.Uuid
+  coreOrgId  String   @unique @db.VarChar(255)
+  createdAt  DateTime @default(now()) @db.Timestamptz
+  updatedAt  DateTime @updatedAt @db.Timestamptz
+  createdBy  String   @db.Uuid
+
+  // Relations
+  suiteOrg   SuiteOrganization @relation(fields: [suiteOrgId], references: [id], onDelete: Cascade)
+
+  @@map("suite_org_mappings")
+}
+
+// Table 3: InternalUser
+// Purpose: Store internal platform admin users
+// Evidence: MODULE_SCOPE_LOCK.md Section 2.3 (Lines 125-138)
+model InternalUser {
+  id        String     @id @default(uuid()) @db.Uuid
+  email     String     @unique @db.VarChar(255)
+  name      String     @db.VarChar(255)
+  role      UserRole
+  status    UserStatus @default(active)
+  createdAt DateTime   @default(now()) @db.Timestamptz
+  updatedAt DateTime   @updatedAt @db.Timestamptz
+  createdBy String     @db.Uuid
+
+  @@map("internal_users")
+}
+
+enum UserRole {
+  platform_admin
+  developer_ops
+  support
+  viewer
+}
+
+enum UserStatus {
+  active
+  deactivated
+}
+
+// Table 4: PlatformAdminAuditLog
+// Purpose: Immutable audit log for all administrative actions
+// Evidence: MODULE_SCOPE_LOCK.md Section 2.3 (Lines 140-154)
+model PlatformAdminAuditLog {
+  id            String     @id @default(uuid()) @db.Uuid
+  correlationId String     @db.VarChar(255)
+  entityType    EntityType
+  entityId      String     @db.VarChar(255)
+  action        ActionType
+  performedBy   String     @db.Uuid
+  performedAt   DateTime   @default(now()) @db.Timestamptz
+  result        ResultType
+  metadata      Json?      @db.JsonB
+
+  @@index([correlationId])
+  @@index([entityType])
+  @@index([performedAt])
+  @@map("platform_admin_audit_logs")
+}
+
+enum EntityType {
+  organization
+  org_mapping
+  internal_user
+}
+
+enum ActionType {
+  create
+  update
+  suspend
+  unsuspend
+  link
+  deactivate
+}
+
+enum ResultType {
+  success
+  failure
+}

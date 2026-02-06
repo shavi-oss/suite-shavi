@@ -505,9 +505,9 @@ throw new Error(`Core API error: ${response.status}`);
 ## Linkage
 
 **Governance Linkage Document**: [SUITE_PLATFORM_ADMIN_LINKAGE.md](./SUITE_PLATFORM_ADMIN_LINKAGE.md)  
-**HEAD Commit**: `498955f`  
-**Tag**: `suite-platform-admin-gate-3.1`  
-**Linkage Date**: 2026-02-07 00:20:55  
+**HEAD Commit**: `ac83fb3`  
+**Tag**: `suite-platform-admin-gate-3.1.1`  
+**Linkage Date**: 2026-02-07 01:03:52  
 **Working Tree**: ✅ Clean
 
-This audit report was generated under commit `2756236` (Gate 3). Test failures identified in this report were resolved in Gate 3.1 (commits `71aaa83`, `cca00f7`, `498955f`).
+This audit report was generated under commit `2756236` (Gate 3). Test failures identified in this report were resolved in Gate 3.1 (commits `71aaa83`, `cca00f7`, `498955f`). Linkage finalized in Gate 3.1.1 (commit `ac83fb3`).

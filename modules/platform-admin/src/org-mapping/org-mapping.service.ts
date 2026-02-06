@@ -7,8 +7,6 @@ import {
 import { OrgMappingRepository } from './org-mapping.repository';
 import { OrganizationRepository } from '../organizations/organization.repository';
 import { CoreClient } from '../core-adapter/core.client';
-import { AuditService } from '../audit/audit.service';
-import { EntityType, ActionType, ResultType } from '@prisma/client';
 import {
   CreateOrgMappingDto,
   OrgMappingResponseDto,
@@ -23,6 +21,8 @@ import {
  * MUST: Validate coreOrgId exists in Core before creating mapping
  * MUST: Fail-closed if validation fails
  * Evidence: MODULE_SECURITY_LAWS.md Section 3.3
+ * 
+ * Gate 3: AuditService removed (forbidden in Gate 3 scope)
  */
 
 @Injectable()
@@ -31,7 +31,6 @@ export class OrgMappingService {
     private readonly mappingRepository: OrgMappingRepository,
     private readonly orgRepository: OrganizationRepository,
     private readonly coreClient: CoreClient,
-    private readonly auditService: AuditService,
   ) {}
 
   async create(
@@ -79,16 +78,6 @@ export class OrgMappingService {
     } catch (error) {
       // Core API error (5xx or network) - fail-closed
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.org_mapping,
-        entityId: dto.suiteOrgId,
-        action: ActionType.link,
-        performedBy: userId,
-        result: ResultType.failure,
-        metadata: { error: 'Core validation failed', coreOrgId: dto.coreOrgId },
-      });
 
       throw new BadRequestException(
         'Failed to validate Core organization: ' + errorMessage,
@@ -97,55 +86,19 @@ export class OrgMappingService {
 
     // Fail-closed: Core org does not exist
     if (!coreOrgExists) {
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.org_mapping,
-        entityId: dto.suiteOrgId,
-        action: ActionType.link,
-        performedBy: userId,
-        result: ResultType.failure,
-        metadata: { error: 'Core org not found', coreOrgId: dto.coreOrgId },
-      });
-
       throw new NotFoundException(
         `Core organization ${dto.coreOrgId} not found`,
       );
     }
 
     // Create mapping
-    try {
-      const mapping = await this.mappingRepository.create(
-        dto.suiteOrgId,
-        dto.coreOrgId,
-        userId,
-      );
+    const mapping = await this.mappingRepository.create(
+      dto.suiteOrgId,
+      dto.coreOrgId,
+      userId,
+    );
 
-      // Audit success
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.org_mapping,
-        entityId: dto.suiteOrgId,
-        action: ActionType.link,
-        performedBy: userId,
-        result: ResultType.success,
-        metadata: { coreOrgId: dto.coreOrgId },
-      });
-
-      return this.mapToResponse(mapping);
-    } catch (error) {
-      // Audit failure
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.org_mapping,
-        entityId: dto.suiteOrgId,
-        action: ActionType.link,
-        performedBy: userId,
-        result: ResultType.failure,
-        metadata: { error: (error as Error).message },
-      });
-
-      throw error;
-    }
+    return this.mapToResponse(mapping);
   }
 
   async findAll(): Promise<OrgMappingResponseDto[]> {

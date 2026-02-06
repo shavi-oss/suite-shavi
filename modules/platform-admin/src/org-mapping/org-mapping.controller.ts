@@ -4,7 +4,6 @@ import {
   Get,
   Param,
   Body,
-  UseGuards,
   Req,
 } from '@nestjs/common';
 import { OrgMappingService } from './org-mapping.service';
@@ -12,8 +11,6 @@ import {
   CreateOrgMappingDto,
   OrgMappingResponseDto,
 } from './dto/org-mapping.dto';
-import { RbacGuard, RequirePermission } from '../security/rbac.guard';
-import { Resource, Action } from '../security/permissions.map';
 import { randomUUID } from 'crypto';
 
 /**
@@ -25,10 +22,11 @@ import { randomUUID } from 'crypto';
  * 
  * MUST: Forward Core JWT for validation
  * MUST: Fail-closed if Core validation fails
+ * 
+ * Gate 3: RBAC guards removed (forbidden in Gate 3 scope)
  */
 
 @Controller('api/platform-admin/org-mappings')
-@UseGuards(RbacGuard)
 export class OrgMappingController {
   constructor(private readonly orgMappingService: OrgMappingService) {}
 
@@ -37,14 +35,13 @@ export class OrgMappingController {
    * Link Suite org ↔ Core org
    */
   @Post()
-  @RequirePermission(Resource.ORG_MAPPINGS, Action.WRITE)
   async create(
     @Body() dto: CreateOrgMappingDto,
     @Req() req: any,
   ): Promise<OrgMappingResponseDto> {
     const correlationId = req.headers['x-correlation-id'] || randomUUID();
     const userId = req.user.id;
-    const coreJwt = req.headers['x-core-jwt']; // Core JWT forwarded from BFF
+    const coreJwt = req.headers['authorization']?.replace('Bearer ', '');
 
     if (!coreJwt) {
       throw new Error('Core JWT is required for org mapping validation');
@@ -58,7 +55,6 @@ export class OrgMappingController {
    * List all mappings
    */
   @Get()
-  @RequirePermission(Resource.ORG_MAPPINGS, Action.READ)
   async findAll(): Promise<OrgMappingResponseDto[]> {
     return this.orgMappingService.findAll();
   }
@@ -68,7 +64,6 @@ export class OrgMappingController {
    * Get mapping for Suite org
    */
   @Get(':suiteOrgId')
-  @RequirePermission(Resource.ORG_MAPPINGS, Action.READ)
   async findBySuiteOrgId(
     @Param('suiteOrgId') suiteOrgId: string,
   ): Promise<OrgMappingResponseDto> {

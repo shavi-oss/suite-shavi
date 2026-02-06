@@ -9,6 +9,10 @@
  * 
  * GATE 1.7 — PHASE 7 INTERNAL USERS MODULE
  * InternalUserController, InternalUserService, InternalUserRepository added.
+ * 
+ * GATE 3 — ORG MAPPING MODULE
+ * OrgMappingController, OrgMappingService, OrgMappingRepository, CoreClient added.
+ * Audit removed per Gate 3 scope.
  */
 
 import { Module } from '@nestjs/common';
@@ -20,13 +24,14 @@ import { OrganizationRepository } from './src/organizations/organization.reposit
 import { InternalUserController } from './src/internal-users/internal-user.controller';
 import { InternalUserService } from './src/internal-users/internal-user.service';
 import { InternalUserRepository } from './src/internal-users/internal-user.repository';
-import { AuditController } from './src/audit/audit.controller';
-import { AuditService } from './src/audit/audit.service';
-import { AuditRepository } from './src/audit/audit.repository';
+import { OrgMappingController } from './src/org-mapping/org-mapping.controller';
+import { OrgMappingService } from './src/org-mapping/org-mapping.service';
+import { OrgMappingRepository } from './src/org-mapping/org-mapping.repository';
+import { CoreClient } from './src/core-adapter/core.client';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [HealthController, InternalUserController, AuditController],
+  controllers: [HealthController, InternalUserController, OrgMappingController],
   providers: [
     {
       provide: APP_GUARD,
@@ -35,8 +40,9 @@ import { AuditRepository } from './src/audit/audit.repository';
     OrganizationRepository,
     InternalUserService,
     InternalUserRepository,
-    AuditService,
-    AuditRepository,
+    OrgMappingService,
+    OrgMappingRepository,
+    CoreClient,
   ],
 })
 export class PlatformAdminModule {}

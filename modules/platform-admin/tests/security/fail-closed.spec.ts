@@ -6,6 +6,9 @@
  * 
  * GATE 4.9 — SECURITY TESTS (UPDATED)
  * Tests for health endpoint opt-in and guard usage verification.
+ * 
+ * GATE 3 — ORG MAPPING FAIL-CLOSED TESTS
+ * Tests for org-mapping fail-closed scenarios.
  */
 
 import { Test } from '@nestjs/testing';
@@ -15,6 +18,10 @@ import { PlatformAdminModule } from '../../platform-admin.module';
 import { HealthController } from '../../controllers/health.controller';
 import { APP_GUARD } from '@nestjs/core';
 import { ExecutionContext } from '@nestjs/common';
+import { OrgMappingService } from '../../src/org-mapping/org-mapping.service';
+import { OrgMappingRepository } from '../../src/org-mapping/org-mapping.repository';
+import { OrganizationRepository } from '../../src/organizations/organization.repository';
+import { CoreClient } from '../../src/core-adapter/core.client';
 
 describe('Fail-Closed Security', () => {
   describe('deny-by-default enforcement', () => {
@@ -38,6 +45,17 @@ describe('Fail-Closed Security', () => {
   });
 
   describe('Gate 4.9 — health endpoint opt-in', () => {
+    const originalEnv = process.env;
+
+    beforeAll(() => {
+      // Set required environment variable for CoreClient
+      process.env = { ...originalEnv, CORE_API_BASE_URL: 'http://core-api.test' };
+    });
+
+    afterAll(() => {
+      process.env = originalEnv;
+    });
+
     it('should preserve APP_GUARD as DenyAllGuard', () => {
       // Verify APP_GUARD provider exists in module metadata
       const providers = Reflect.getMetadata('providers', PlatformAdminModule) || [];
@@ -49,13 +67,13 @@ describe('Fail-Closed Security', () => {
       expect(appGuardProvider.useClass).toBe(DenyAllGuard);
     });
 
-    it('should have exactly one controller (HealthController)', async () => {
+    it('should include HealthController among registered controllers', async () => {
       const moduleRef = await Test.createTestingModule({
         imports: [PlatformAdminModule],
       }).compile();
 
-      const controllers = moduleRef.get(HealthController);
-      expect(controllers).toBeDefined();
+      const healthController = moduleRef.get(HealthController);
+      expect(healthController).toBeDefined();
     });
 
     it('should use ExplicitAllowGuard on exactly one route', () => {
@@ -86,6 +104,116 @@ describe('Fail-Closed Security', () => {
       });
 
       expect(guardUsageCount).toBe(1); // EXACTLY one usage
+    });
+  });
+
+  describe('Gate 3 — Org Mapping Fail-Closed', () => {
+    let service: OrgMappingService;
+    let mappingRepository: OrgMappingRepository;
+    let orgRepository: OrganizationRepository;
+    let coreClient: CoreClient;
+    const originalEnv = process.env;
+
+    beforeEach(async () => {
+      // Set required environment variable for CoreClient
+      process.env = { ...originalEnv, CORE_API_BASE_URL: 'http://core-api.test' };
+
+      const module = await Test.createTestingModule({
+        providers: [
+          OrgMappingService,
+          {
+            provide: OrgMappingRepository,
+            useValue: {
+              findBySuiteOrgId: jest.fn(),
+              findByCoreOrgId: jest.fn(),
+              create: jest.fn(),
+            },
+          },
+          {
+            provide: OrganizationRepository,
+            useValue: {
+              findById: jest.fn(),
+            },
+          },
+          {
+            provide: CoreClient,
+            useValue: {
+              validateOrganizationExists: jest.fn(),
+            },
+          },
+        ],
+      }).compile();
+
+      service = module.get<OrgMappingService>(OrgMappingService);
+      mappingRepository = module.get<OrgMappingRepository>(OrgMappingRepository);
+      orgRepository = module.get<OrganizationRepository>(OrganizationRepository);
+      coreClient = module.get<CoreClient>(CoreClient);
+    });
+
+    afterEach(() => {
+      process.env = originalEnv;
+    });
+
+    it('DENY: Core returns 404 → do NOT create mapping', async () => {
+      const dto = { suiteOrgId: 'suite-1', coreOrgId: 'core-1' };
+      
+      jest.spyOn(orgRepository, 'findById').mockResolvedValue({ id: 'suite-1' } as any);
+      jest.spyOn(mappingRepository, 'findBySuiteOrgId').mockResolvedValue(null);
+      jest.spyOn(mappingRepository, 'findByCoreOrgId').mockResolvedValue(null);
+      jest.spyOn(coreClient, 'validateOrganizationExists').mockResolvedValue(false);
+
+      await expect(service.create(dto, 'user-1', 'jwt', 'corr-1')).rejects.toThrow();
+      expect(mappingRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('DENY: Core returns 401/403 → do NOT create mapping', async () => {
+      const dto = { suiteOrgId: 'suite-1', coreOrgId: 'core-1' };
+      
+      jest.spyOn(orgRepository, 'findById').mockResolvedValue({ id: 'suite-1' } as any);
+      jest.spyOn(mappingRepository, 'findBySuiteOrgId').mockResolvedValue(null);
+      jest.spyOn(mappingRepository, 'findByCoreOrgId').mockResolvedValue(null);
+      jest.spyOn(coreClient, 'validateOrganizationExists').mockRejectedValue(
+        new Error('Core authentication failed')
+      );
+
+      await expect(service.create(dto, 'user-1', 'jwt', 'corr-1')).rejects.toThrow();
+      expect(mappingRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('DENY: Missing mapping → do NOT create', async () => {
+      const dto = { suiteOrgId: 'suite-1', coreOrgId: 'core-1' };
+      
+      jest.spyOn(orgRepository, 'findById').mockResolvedValue(null);
+
+      await expect(service.create(dto, 'user-1', 'jwt', 'corr-1')).rejects.toThrow();
+      expect(mappingRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('DENY: Ambiguous mapping (duplicate) → do NOT create', async () => {
+      const dto = { suiteOrgId: 'suite-1', coreOrgId: 'core-1' };
+      
+      jest.spyOn(orgRepository, 'findById').mockResolvedValue({ id: 'suite-1' } as any);
+      jest.spyOn(mappingRepository, 'findBySuiteOrgId').mockResolvedValue({
+        suiteOrgId: 'suite-1',
+        coreOrgId: 'core-2',
+      } as any);
+
+      await expect(service.create(dto, 'user-1', 'jwt', 'corr-1')).rejects.toThrow();
+      expect(mappingRepository.create).not.toHaveBeenCalled();
+    });
+
+    it('DENY: Any error → do NOT create mapping', async () => {
+      const dto = { suiteOrgId: 'suite-1', coreOrgId: 'core-1' };
+      
+      jest.spyOn(orgRepository, 'findById').mockResolvedValue({ id: 'suite-1' } as any);
+      jest.spyOn(mappingRepository, 'findBySuiteOrgId').mockResolvedValue(null);
+      jest.spyOn(mappingRepository, 'findByCoreOrgId').mockResolvedValue(null);
+      jest.spyOn(coreClient, 'validateOrganizationExists').mockRejectedValue(
+        new Error('Network timeout')
+      );
+
+      await expect(service.create(dto, 'user-1', 'jwt', 'corr-1')).rejects.toThrow();
+      expect(mappingRepository.create).not.toHaveBeenCalled();
     });
   });
 });

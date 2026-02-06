@@ -1,7 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InternalUserRepository } from './internal-user.repository';
-import { AuditService } from '../audit/audit.service';
-import { EntityType, ActionType, ResultType, UserStatus } from '@prisma/client';
+import { UserStatus } from '@prisma/client';
 import { CreateInternalUserDto, InternalUserResponseDto } from './dto/create-internal-user.dto';
 
 /**
@@ -9,13 +8,14 @@ import { CreateInternalUserDto, InternalUserResponseDto } from './dto/create-int
  * 
  * Purpose: Business logic for internal user management
  * Evidence: MODULE_SCOPE_LOCK.md Section 2.2 (Lines 72-77)
+ * 
+ * Gate 3 Patch: AuditService removed (forbidden in Gate 3 scope)
  */
 
 @Injectable()
 export class InternalUserService {
   constructor(
     private readonly userRepository: InternalUserRepository,
-    private readonly auditService: AuditService,
   ) {}
 
   async create(
@@ -29,40 +29,14 @@ export class InternalUserService {
       throw new BadRequestException(`Email ${dto.email} already exists`);
     }
 
-    try {
-      const user = await this.userRepository.create(
-        dto.email,
-        dto.name,
-        dto.role,
-        userId,
-      );
+    const user = await this.userRepository.create(
+      dto.email,
+      dto.name,
+      dto.role,
+      userId,
+    );
 
-      // Audit log (fail-closed)
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.internal_user,
-        entityId: user.id,
-        action: ActionType.create,
-        performedBy: userId,
-        result: ResultType.success,
-        metadata: { email: dto.email, name: dto.name, role: dto.role },
-      });
-
-      return this.mapToResponse(user);
-    } catch (error) {
-      // Audit failure
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.internal_user,
-        entityId: 'unknown',
-        action: ActionType.create,
-        performedBy: userId,
-        result: ResultType.failure,
-        metadata: { error: (error as Error).message },
-      });
-
-      throw error;
-    }
+    return this.mapToResponse(user);
   }
 
   async findAll(): Promise<InternalUserResponseDto[]> {
@@ -95,35 +69,9 @@ export class InternalUserService {
       throw new BadRequestException(`Internal user ${id} is already deactivated`);
     }
 
-    try {
-      const updated = await this.userRepository.updateStatus(id, UserStatus.deactivated);
+    const updated = await this.userRepository.updateStatus(id, UserStatus.deactivated);
 
-      // Audit log (fail-closed)
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.internal_user,
-        entityId: id,
-        action: ActionType.deactivate,
-        performedBy: userId,
-        result: ResultType.success,
-        metadata: {},
-      });
-
-      return this.mapToResponse(updated);
-    } catch (error) {
-      // Audit failure
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.internal_user,
-        entityId: id,
-        action: ActionType.deactivate,
-        performedBy: userId,
-        result: ResultType.failure,
-        metadata: { error: (error as Error).message },
-      });
-
-      throw error;
-    }
+    return this.mapToResponse(updated);
   }
 
   private mapToResponse(user: any): InternalUserResponseDto {

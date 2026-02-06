@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { InternalUserRepository } from '../../../src/internal-users/internal-user.repository';
+import { PrismaService } from '../../../src/db/prisma.service';
 import { UserStatus } from '@prisma/client';
 
 describe('InternalUserRepository', () => {
@@ -21,14 +22,13 @@ describe('InternalUserRepository', () => {
       providers: [
         InternalUserRepository,
         {
-          provide: 'PrismaService',
+          provide: PrismaService,
           useValue: mockPrismaService,
         },
       ],
     }).compile();
 
     repository = module.get<InternalUserRepository>(InternalUserRepository);
-    (repository as any).prisma = mockPrismaService;
   });
 
   describe('create', () => {

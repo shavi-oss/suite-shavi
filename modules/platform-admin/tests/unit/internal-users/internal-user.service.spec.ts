@@ -3,6 +3,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { InternalUserService } from '../../../src/internal-users/internal-user.service';
 import { InternalUserRepository } from '../../../src/internal-users/internal-user.repository';
 import { AuditService } from '../../../src/audit/audit.service';
+import { PrismaService } from '../../../src/db/prisma.service';
 import { EntityType, ActionType, ResultType, UserStatus, UserRole } from '@prisma/client';
 
 describe('InternalUserService', () => {
@@ -28,6 +29,17 @@ describe('InternalUserService', () => {
           provide: AuditService,
           useValue: {
             logAction: jest.fn(),
+          },
+        },
+        {
+          provide: PrismaService,
+          useValue: {
+            internalUser: {
+              create: jest.fn(),
+              findMany: jest.fn(),
+              findUnique: jest.fn(),
+              update: jest.fn(),
+            },
           },
         },
       ],

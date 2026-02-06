@@ -22,12 +22,18 @@ describe('Build Non-Regression', () => {
   });
 
   describe('Gate 4.9 — controller constraints', () => {
-    it('should have exactly one controller (HealthController)', () => {
-      // Count controllers by checking module metadata
+    it('should have exactly three controllers (Gate 1.7)', () => {
+      // Gate 1.7: Verify 3 controllers (HealthController, InternalUserController, AuditController)
+      // Evidence: platform-admin.module.ts line 29, GATE_1_7_GOVERNANCE_AMENDMENT.md lines 77-78
       const controllers = Reflect.getMetadata('controllers', PlatformAdminModule);
       expect(controllers).toBeDefined();
-      expect(controllers.length).toBe(1);
-      expect(controllers[0]).toBe(HealthController);
+      expect(controllers.length).toBe(3);
+      
+      // Verify exact controller set (order-independent)
+      const controllerNames = controllers.map((c: any) => c.name);
+      expect(controllerNames).toContain('HealthController');
+      expect(controllerNames).toContain('InternalUserController');
+      expect(controllerNames).toContain('AuditController');
     });
 
     it('should have exactly one route (/platform-admin/health)', () => {

@@ -10,9 +10,6 @@ describe('PlatformAdmin — Prisma Wiring', () => {
   let PrismaService: any;
 
   beforeAll(async () => {
-    // Set mock DATABASE_URL to avoid Prisma initialization errors
-    process.env.DATABASE_URL = 'postgresql://mock:mock@localhost:5432/mock';
-
     // Mock PrismaClient methods to avoid database connection
     const mockConnect = jest.fn().mockResolvedValue(undefined);
     const mockDisconnect = jest.fn().mockResolvedValue(undefined);

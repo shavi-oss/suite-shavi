@@ -68,5 +68,67 @@ describe('CoreClient', () => {
 
       expect(result).toBe(false);
     });
+
+    it('should throw error when Core returns 401 (fail-closed)', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 401,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      await expect(client.validateOrganizationExists('core-1', 'jwt-token', 'corr-1'))
+        .rejects.toThrow('Core authentication failed');
+    });
+
+    it('should throw error when Core returns 403 (fail-closed)', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 403,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      await expect(client.validateOrganizationExists('core-1', 'jwt-token', 'corr-1'))
+        .rejects.toThrow('Core authentication failed');
+    });
+
+    it('should throw error when Core returns 500 (fail-closed)', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 500,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      await expect(client.validateOrganizationExists('core-1', 'jwt-token', 'corr-1'))
+        .rejects.toThrow('Core API error: 500');
+    });
+
+    it('should throw error when Core returns 503 (fail-closed)', async () => {
+      const mockResponse = {
+        ok: false,
+        status: 503,
+      };
+
+      (global.fetch as jest.Mock).mockResolvedValue(mockResponse);
+
+      await expect(client.validateOrganizationExists('core-1', 'jwt-token', 'corr-1'))
+        .rejects.toThrow('Core API error: 503');
+    });
+
+    it('should throw error on network timeout (fail-closed)', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('AbortError: timeout'));
+
+      await expect(client.validateOrganizationExists('core-1', 'jwt-token', 'corr-1'))
+        .rejects.toThrow('Core API network error');
+    });
+
+    it('should throw error on network failure (fail-closed)', async () => {
+      (global.fetch as jest.Mock).mockRejectedValue(new Error('Network error'));
+
+      await expect(client.validateOrganizationExists('core-1', 'jwt-token', 'corr-1'))
+        .rejects.toThrow('Core API network error');
+    });
   });
 });

@@ -104,18 +104,6 @@ export class CoreClient {
         return false;
       }
 
-      // Handle 5xx errors
-      if (response.status >= 500) {
-        this.logger.error({
-          message: 'Core API error',
-          correlationId,
-          coreOrgId,
-          statusCode: response.status,
-          // SAFE: Only log safe fields, NO error object dump
-        });
-        throw new Error(`Core API error: ${response.status}`);
-      }
-
       // Handle 401/403 (fail-closed)
       if (response.status === 401 || response.status === 403) {
         this.logger.error({
@@ -126,6 +114,18 @@ export class CoreClient {
           // SAFE: No JWT in log
         });
         throw new Error('Core authentication failed');
+      }
+
+      // Handle 5xx errors
+      if (response.status >= 500) {
+        this.logger.error({
+          message: 'Core API error',
+          correlationId,
+          coreOrgId,
+          statusCode: response.status,
+          // SAFE: Only log safe fields, NO error object dump
+        });
+        throw new Error(`Core API error: ${response.status}`);
       }
 
       // Other HTTP errors
@@ -139,6 +139,15 @@ export class CoreClient {
       throw new Error(`Core API error: ${response.status}`);
 
     } catch (error) {
+      // Only catch network errors or timeouts, not HTTP errors thrown above
+      // Re-throw if this is an Error we already threw
+      if (error instanceof Error && (
+        error.message.includes('Core authentication failed') ||
+        error.message.includes('Core API error')
+      )) {
+        throw error;
+      }
+
       // Handle network errors or timeouts
       // CRITICAL: Use redaction helper to prevent JWT leakage
       const safeError = redactSensitiveData(error);

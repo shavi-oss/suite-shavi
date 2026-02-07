@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { InternalUserService } from '../../../src/internal-users/internal-user.service';
 import { InternalUserRepository } from '../../../src/internal-users/internal-user.repository';
+import { AuditService } from '../../../src/audit/audit.service';
 import { UserStatus, UserRole } from '@prisma/client';
 
 describe('InternalUserService', () => {
@@ -20,6 +21,12 @@ describe('InternalUserService', () => {
             findById: jest.fn(),
             findByEmail: jest.fn(),
             updateStatus: jest.fn(),
+          },
+        },
+        {
+          provide: AuditService,
+          useValue: {
+            logAction: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -44,13 +51,20 @@ describe('InternalUserService', () => {
       };
 
       jest.spyOn(repository, 'findByEmail').mockResolvedValue(null);
-      jest.spyOn(repository, 'create').mockResolvedValue(mockUser);
+      
+      // Mock $transaction to execute callback immediately
+      (repository as any).prisma = {
+        $transaction: jest.fn(async (callback) => callback({
+          internalUser: {
+            create: jest.fn().mockResolvedValue(mockUser),
+          },
+        })),
+      };
 
       const result = await service.create(dto, 'creator-1', 'corr-1');
 
       expect(result.id).toBe('user-1');
       expect(repository.findByEmail).toHaveBeenCalledWith('test@example.com');
-      expect(repository.create).toHaveBeenCalledWith('test@example.com', 'Test User', 'platform_admin', 'creator-1');
     });
 
     it('should throw BadRequestException if email already exists', async () => {
@@ -60,7 +74,7 @@ describe('InternalUserService', () => {
       jest.spyOn(repository, 'findByEmail').mockResolvedValue(existingUser as any);
 
       await expect(service.create(dto, 'creator-1', 'corr-1')).rejects.toThrow(BadRequestException);
-      await expect(service.create(dto, 'creator-1', 'corr-1')).rejects.toThrow('Email test@example.com already exists');
+      await expect(service.create(dto, 'creator-1', 'corr-1')).rejects.toThrow('Email already exists');
     });
 
     it('should throw error if create fails', async () => {
@@ -68,9 +82,11 @@ describe('InternalUserService', () => {
       const error = new Error('Database error');
 
       jest.spyOn(repository, 'findByEmail').mockResolvedValue(null);
-      jest.spyOn(repository, 'create').mockRejectedValue(error);
+      (repository as any).prisma = {
+        $transaction: jest.fn().mockRejectedValue(error),
+      };
 
-      await expect(service.create(dto, 'creator-1', 'corr-1')).rejects.toThrow(error);
+      await expect(service.create(dto, 'creator-1', 'corr-1')).rejects.toThrow('INTERNAL_USER_CREATE_FAILED');
     });
   });
 
@@ -136,7 +152,15 @@ describe('InternalUserService', () => {
       const updatedUser = { ...mockUser, status: UserStatus.deactivated };
 
       jest.spyOn(repository, 'findById').mockResolvedValue(mockUser);
-      jest.spyOn(repository, 'updateStatus').mockResolvedValue(updatedUser);
+      
+      // Mock $transaction to execute callback immediately
+      (repository as any).prisma = {
+        $transaction: jest.fn(async (callback) => callback({
+          internalUser: {
+            update: jest.fn().mockResolvedValue(updatedUser),
+          },
+        })),
+      };
 
       const result = await service.deactivate('user-1', 'admin-1', 'corr-1');
 
@@ -183,9 +207,11 @@ describe('InternalUserService', () => {
       const error = new Error('Database error');
 
       jest.spyOn(repository, 'findById').mockResolvedValue(mockUser);
-      jest.spyOn(repository, 'updateStatus').mockRejectedValue(error);
+      (repository as any).prisma = {
+        $transaction: jest.fn().mockRejectedValue(error),
+      };
 
-      await expect(service.deactivate('user-1', 'admin-1', 'corr-1')).rejects.toThrow(error);
+      await expect(service.deactivate('user-1', 'admin-1', 'corr-1')).rejects.toThrow('INTERNAL_USER_DEACTIVATE_FAILED');
     });
   });
 });

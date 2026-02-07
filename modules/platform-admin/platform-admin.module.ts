@@ -28,6 +28,8 @@ import { OrgMappingController } from './src/org-mapping/org-mapping.controller';
 import { OrgMappingService } from './src/org-mapping/org-mapping.service';
 import { OrgMappingRepository } from './src/org-mapping/org-mapping.repository';
 import { CoreClient } from './src/core-adapter/core.client';
+import { AuditService } from './src/audit/audit.service';
+import { AuditRepository } from './src/audit/audit.repository';
 
 @Module({
   imports: [PrismaModule],
@@ -43,6 +45,8 @@ import { CoreClient } from './src/core-adapter/core.client';
     OrgMappingService,
     OrgMappingRepository,
     CoreClient,
+    AuditService,
+    AuditRepository,
   ],
 })
 export class PlatformAdminModule {}

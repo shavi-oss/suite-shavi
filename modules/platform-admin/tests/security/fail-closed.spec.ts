@@ -22,6 +22,7 @@ import { OrgMappingService } from '../../src/org-mapping/org-mapping.service';
 import { OrgMappingRepository } from '../../src/org-mapping/org-mapping.repository';
 import { OrganizationRepository } from '../../src/organizations/organization.repository';
 import { CoreClient } from '../../src/core-adapter/core.client';
+import { AuditService } from '../../src/audit/audit.service';
 
 describe('Fail-Closed Security', () => {
   describe('deny-by-default enforcement', () => {
@@ -139,6 +140,12 @@ describe('Fail-Closed Security', () => {
             provide: CoreClient,
             useValue: {
               validateOrganizationExists: jest.fn(),
+            },
+          },
+          {
+            provide: AuditService,
+            useValue: {
+              logAction: jest.fn().mockResolvedValue(undefined),
             },
           },
         ],

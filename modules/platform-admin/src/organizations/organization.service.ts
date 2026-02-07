@@ -24,33 +24,28 @@ export class OrganizationService {
     correlationId: string,
   ): Promise<OrganizationResponseDto> {
     try {
-      const org = await this.orgRepository.create(dto.name, userId);
+      // Use transaction for atomic audit + DB write
+      const org = await this.orgRepository['prisma'].$transaction(async (tx: any) => {
+        const newOrg = await tx.suiteOrganization.create({
+          data: { name: dto.name, createdBy: userId, status: 'active' },
+        });
 
-      // Audit log (fail-closed)
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.organization,
-        entityId: org.id,
-        action: ActionType.create,
-        performedBy: userId,
-        result: ResultType.success,
-        metadata: { name: dto.name },
+        // Audit log (fail-closed) - NO PII in metadata
+        await this.auditService.logAction({
+          correlationId,
+          entityType: EntityType.organization,
+          entityId: newOrg.id,
+          action: ActionType.create,
+          performedBy: userId,
+          result: ResultType.success,
+        }, tx);
+
+        return newOrg;
       });
 
       return this.mapToResponse(org);
     } catch (error) {
-      // Audit failure
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.organization,
-        entityId: 'unknown',
-        action: ActionType.create,
-        performedBy: userId,
-        result: ResultType.failure,
-        metadata: { error: (error as Error).message },
-      });
-
-      throw error;
+      throw new Error('ORGANIZATION_CREATE_FAILED');
     }
   }
 
@@ -81,30 +76,27 @@ export class OrganizationService {
     }
 
     try {
-      const updated = await this.orgRepository.updateStatus(id, 'suspended' as any);
+      const updated = await this.orgRepository['prisma'].$transaction(async (tx: any) => {
+        const updatedOrg = await tx.suiteOrganization.update({
+          where: { id },
+          data: { status: 'suspended' },
+        });
 
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.organization,
-        entityId: id,
-        action: ActionType.suspend,
-        performedBy: userId,
-        result: ResultType.success,
+        await this.auditService.logAction({
+          correlationId,
+          entityType: EntityType.organization,
+          entityId: id,
+          action: ActionType.suspend,
+          performedBy: userId,
+          result: ResultType.success,
+        }, tx);
+
+        return updatedOrg;
       });
 
       return this.mapToResponse(updated);
     } catch (error) {
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.organization,
-        entityId: id,
-        action: ActionType.suspend,
-        performedBy: userId,
-        result: ResultType.failure,
-        metadata: { error: (error as Error).message },
-      });
-
-      throw error;
+      throw new Error('ORGANIZATION_SUSPEND_FAILED');
     }
   }
 
@@ -120,30 +112,27 @@ export class OrganizationService {
     }
 
     try {
-      const updated = await this.orgRepository.updateStatus(id, 'active' as any);
+      const updated = await this.orgRepository['prisma'].$transaction(async (tx: any) => {
+        const updatedOrg = await tx.suiteOrganization.update({
+          where: { id },
+          data: { status: 'active' },
+        });
 
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.organization,
-        entityId: id,
-        action: ActionType.unsuspend,
-        performedBy: userId,
-        result: ResultType.success,
+        await this.auditService.logAction({
+          correlationId,
+          entityType: EntityType.organization,
+          entityId: id,
+          action: ActionType.unsuspend,
+          performedBy: userId,
+          result: ResultType.success,
+        }, tx);
+
+        return updatedOrg;
       });
 
       return this.mapToResponse(updated);
     } catch (error) {
-      await this.auditService.logAction({
-        correlationId,
-        entityType: EntityType.organization,
-        entityId: id,
-        action: ActionType.unsuspend,
-        performedBy: userId,
-        result: ResultType.failure,
-        metadata: { error: (error as Error).message },
-      });
-
-      throw error;
+      throw new Error('ORGANIZATION_UNSUSPEND_FAILED');
     }
   }
 

@@ -138,7 +138,7 @@ export class RbacGuard implements CanActivate {
       // Log error server-side but do not expose details
       console.error('Authorization violation audit failed (fail-closed maintained)', {
         rule,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        errorCode: 'RBAC_AUDIT_FAILED',
       });
     }
   }

@@ -4,6 +4,7 @@ import { OrgMappingService } from '../../../src/org-mapping/org-mapping.service'
 import { OrgMappingRepository } from '../../../src/org-mapping/org-mapping.repository';
 import { OrganizationRepository } from '../../../src/organizations/organization.repository';
 import { CoreClient } from '../../../src/core-adapter/core.client';
+import { AuditService } from '../../../src/audit/audit.service';
 
 describe('OrgMappingService', () => {
   let service: OrgMappingService;
@@ -36,6 +37,12 @@ describe('OrgMappingService', () => {
             validateOrganizationExists: jest.fn(),
           },
         },
+        {
+          provide: AuditService,
+          useValue: {
+            logAction: jest.fn().mockResolvedValue(undefined),
+          },
+        },
       ],
     }).compile();
 
@@ -61,14 +68,21 @@ describe('OrgMappingService', () => {
       jest.spyOn(mappingRepository, 'findBySuiteOrgId').mockResolvedValue(null);
       jest.spyOn(mappingRepository, 'findByCoreOrgId').mockResolvedValue(null);
       jest.spyOn(coreClient, 'validateOrganizationExists').mockResolvedValue(true);
-      jest.spyOn(mappingRepository, 'create').mockResolvedValue(mockMapping as any);
+      
+      // Mock $transaction to execute callback immediately
+      (mappingRepository as any).prisma = {
+        $transaction: jest.fn(async (callback) => callback({
+          suiteOrgMapping: {
+            create: jest.fn().mockResolvedValue(mockMapping),
+          },
+        })),
+      };
 
       const result = await service.create(dto, 'user-1', 'jwt-token', 'corr-1');
 
       expect(result).toEqual(mockMapping);
       expect(orgRepository.findById).toHaveBeenCalledWith('suite-1');
       expect(coreClient.validateOrganizationExists).toHaveBeenCalledWith('core-1', 'jwt-token', 'corr-1');
-      expect(mappingRepository.create).toHaveBeenCalledWith('suite-1', 'core-1', 'user-1');
     });
 
     it('should throw NotFoundException if suite org not found', async () => {
@@ -132,7 +146,7 @@ describe('OrgMappingService', () => {
         BadRequestException
       );
       await expect(service.create(dto, 'user-1', 'jwt-token', 'corr-1')).rejects.toThrow(
-        'Failed to validate Core organization: Core API error: 500'
+        'Failed to validate Core organization'
       );
     });
 

@@ -7,6 +7,8 @@ import {
 import { OrgMappingRepository } from './org-mapping.repository';
 import { OrganizationRepository } from '../organizations/organization.repository';
 import { CoreClient } from '../core-adapter/core.client';
+import { AuditService } from '../audit/audit.service';
+import { EntityType, ActionType, ResultType } from '@prisma/client';
 import {
   CreateOrgMappingDto,
   OrgMappingResponseDto,
@@ -22,7 +24,8 @@ import {
  * MUST: Fail-closed if validation fails
  * Evidence: MODULE_SECURITY_LAWS.md Section 3.3
  * 
- * Gate 3: AuditService removed (forbidden in Gate 3 scope)
+ * Gate 7: Audit logging added for WRITE operations
+ * Evidence: MODULE_SECURITY_LAWS.md Section 3.4
  */
 
 @Injectable()
@@ -31,6 +34,7 @@ export class OrgMappingService {
     private readonly mappingRepository: OrgMappingRepository,
     private readonly orgRepository: OrganizationRepository,
     private readonly coreClient: CoreClient,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(
@@ -77,11 +81,7 @@ export class OrgMappingService {
       );
     } catch (error) {
       // Core API error (5xx or network) - fail-closed
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-
-      throw new BadRequestException(
-        'Failed to validate Core organization: ' + errorMessage,
-      );
+      throw new BadRequestException('Failed to validate Core organization');
     }
 
     // Fail-closed: Core org does not exist
@@ -92,13 +92,35 @@ export class OrgMappingService {
     }
 
     // Create mapping
-    const mapping = await this.mappingRepository.create(
-      dto.suiteOrgId,
-      dto.coreOrgId,
-      userId,
-    );
+    try {
+      // Use transaction for atomic audit + DB write
+      const mapping = await this.mappingRepository['prisma'].$transaction(async (tx: any) => {
+        const newMapping = await tx.suiteOrgMapping.create({
+          data: {
+            suiteOrgId: dto.suiteOrgId,
+            coreOrgId: dto.coreOrgId,
+            createdBy: userId,
+          },
+        });
 
-    return this.mapToResponse(mapping);
+        // Audit log (fail-closed) - NO PII in metadata
+        await this.auditService.logAction({
+          correlationId,
+          entityType: EntityType.org_mapping,
+          entityId: newMapping.suiteOrgId,
+          action: ActionType.link,
+          performedBy: userId,
+          result: ResultType.success,
+        }, tx);
+
+        return newMapping;
+      });
+
+      return this.mapToResponse(mapping);
+    } catch (error) {
+      // Audit failure - safe error code only
+      throw new Error('ORG_MAPPING_CREATE_FAILED');
+    }
   }
 
   async findAll(): Promise<OrgMappingResponseDto[]> {

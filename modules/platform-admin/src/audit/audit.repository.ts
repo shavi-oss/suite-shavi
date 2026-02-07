@@ -19,17 +19,25 @@ export class AuditRepository {
 
   /**
    * Create audit log entry (append-only)
+   * 
+   * @param data Audit log data
+   * @param tx Optional Prisma transaction client for atomic operations
    */
-  async create(data: {
-    correlationId: string;
-    entityType: EntityType;
-    entityId: string;
-    action: ActionType;
-    performedBy: string;
-    result: ResultType;
-    metadata?: Record<string, any>;
-  }) {
-    return this.prisma.platformAdminAuditLog.create({
+  async create(
+    data: {
+      correlationId: string;
+      entityType: EntityType;
+      entityId: string;
+      action: ActionType;
+      performedBy: string;
+      result: ResultType;
+      metadata?: Record<string, any>;
+    },
+    tx?: Prisma.TransactionClient
+  ) {
+    const client = tx || this.prisma;
+    
+    return client.platformAdminAuditLog.create({
       data: {
         correlationId: data.correlationId,
         entityType: data.entityType,

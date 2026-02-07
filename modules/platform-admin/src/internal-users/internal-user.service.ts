@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InternalUserRepository } from './internal-user.repository';
-import { UserStatus } from '@prisma/client';
+import { AuditService } from '../audit/audit.service';
+import { UserStatus, EntityType, ActionType, ResultType } from '@prisma/client';
 import { CreateInternalUserDto, InternalUserResponseDto } from './dto/create-internal-user.dto';
 
 /**
@@ -9,13 +10,15 @@ import { CreateInternalUserDto, InternalUserResponseDto } from './dto/create-int
  * Purpose: Business logic for internal user management
  * Evidence: MODULE_SCOPE_LOCK.md Section 2.2 (Lines 72-77)
  * 
- * Gate 3 Patch: AuditService removed (forbidden in Gate 3 scope)
+ * Gate 7: Audit logging added for WRITE operations
+ * Evidence: MODULE_SECURITY_LAWS.md Section 3.4
  */
 
 @Injectable()
 export class InternalUserService {
   constructor(
     private readonly userRepository: InternalUserRepository,
+    private readonly auditService: AuditService,
   ) {}
 
   async create(
@@ -26,17 +29,40 @@ export class InternalUserService {
     // Check if email already exists
     const existing = await this.userRepository.findByEmail(dto.email);
     if (existing) {
-      throw new BadRequestException(`Email ${dto.email} already exists`);
+      throw new BadRequestException('Email already exists');
     }
 
-    const user = await this.userRepository.create(
-      dto.email,
-      dto.name,
-      dto.role,
-      userId,
-    );
+    try {
+      // Use transaction for atomic audit + DB write
+      const user = await this.userRepository['prisma'].$transaction(async (tx: any) => {
+        const newUser = await tx.internalUser.create({
+          data: {
+            email: dto.email,
+            name: dto.name,
+            role: dto.role,
+            createdBy: userId,
+            status: UserStatus.active,
+          },
+        });
 
-    return this.mapToResponse(user);
+        // Audit log (fail-closed) - NO PII in metadata
+        await this.auditService.logAction({
+          correlationId,
+          entityType: EntityType.internal_user,
+          entityId: newUser.id,
+          action: ActionType.create,
+          performedBy: userId,
+          result: ResultType.success,
+        }, tx);
+
+        return newUser;
+      });
+
+      return this.mapToResponse(user);
+    } catch (error) {
+      // Audit failure - safe error code only
+      throw new Error('INTERNAL_USER_CREATE_FAILED');
+    }
   }
 
   async findAll(): Promise<InternalUserResponseDto[]> {
@@ -69,9 +95,30 @@ export class InternalUserService {
       throw new BadRequestException(`Internal user ${id} is already deactivated`);
     }
 
-    const updated = await this.userRepository.updateStatus(id, UserStatus.deactivated);
+    try {
+      // Use transaction for atomic audit + DB write
+      const updated = await this.userRepository['prisma'].$transaction(async (tx: any) => {
+        const updatedUser = await tx.internalUser.update({
+          where: { id },
+          data: { status: UserStatus.deactivated },
+        });
 
-    return this.mapToResponse(updated);
+        await this.auditService.logAction({
+          correlationId,
+          entityType: EntityType.internal_user,
+          entityId: id,
+          action: ActionType.deactivate,
+          performedBy: userId,
+          result: ResultType.success,
+        }, tx);
+
+        return updatedUser;
+      });
+
+      return this.mapToResponse(updated);
+    } catch (error) {
+      throw new Error('INTERNAL_USER_DEACTIVATE_FAILED');
+    }
   }
 
   private mapToResponse(user: any): InternalUserResponseDto {

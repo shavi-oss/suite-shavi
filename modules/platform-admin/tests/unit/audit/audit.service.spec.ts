@@ -38,7 +38,7 @@ describe('AuditService — Fail-Closed Enforcement', () => {
         result: ResultType.success,
       };
 
-      await expect(service.logAction(params)).rejects.toThrow('Audit log creation failed');
+      await expect(service.logAction(params)).rejects.toThrow('AUDIT_WRITE_FAILED');
     });
 
     it('should NOT swallow exceptions', async () => {
@@ -72,7 +72,7 @@ describe('AuditService — Fail-Closed Enforcement', () => {
       };
 
       // Verify that the thrown error does NOT include sensitive details
-      await expect(service.logAction(params)).rejects.toThrow('Audit log creation failed');
+      await expect(service.logAction(params)).rejects.toThrow('AUDIT_WRITE_FAILED');
       await expect(service.logAction(params)).rejects.not.toThrow('Secret database password');
     });
   });
@@ -103,7 +103,7 @@ describe('AuditService — Fail-Closed Enforcement', () => {
       };
 
       await expect(service.logAction(params)).resolves.not.toThrow();
-      expect(repository.create).toHaveBeenCalledWith(params);
+      expect(repository.create).toHaveBeenCalledWith(params, undefined);
     });
   });
 });

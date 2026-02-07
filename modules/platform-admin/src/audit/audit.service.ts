@@ -22,17 +22,22 @@ export class AuditService {
   /**
    * Log an administrative action
    * 
+   * @param params Audit log parameters
+   * @param tx Optional Prisma transaction client for atomic operations
    * @throws Error if audit log creation fails
    */
-  async logAction(params: {
-    correlationId: string;
-    entityType: EntityType;
-    entityId: string;
-    action: ActionType;
-    performedBy: string;
-    result: ResultType;
-    metadata?: Record<string, any>;
-  }): Promise<void> {
+  async logAction(
+    params: {
+      correlationId: string;
+      entityType: EntityType;
+      entityId: string;
+      action: ActionType;
+      performedBy: string;
+      result: ResultType;
+      metadata?: Record<string, any>;
+    },
+    tx?: any
+  ): Promise<void> {
     try {
       await this.auditRepository.create({
         correlationId: params.correlationId,
@@ -42,7 +47,7 @@ export class AuditService {
         performedBy: params.performedBy,
         result: params.result,
         metadata: params.metadata,
-      });
+      }, tx);
 
       this.logger.log({
         message: 'Audit log created',
@@ -57,11 +62,11 @@ export class AuditService {
         correlationId: params.correlationId,
         entityType: params.entityType,
         action: params.action,
-        error: (error as Error).message,
+        errorCode: 'AUDIT_WRITE_FAILED',
       });
 
       // FAIL-CLOSED: If audit log fails, the action must fail
-      throw new Error('Audit log creation failed');
+      throw new Error('AUDIT_WRITE_FAILED');
     }
   }
 

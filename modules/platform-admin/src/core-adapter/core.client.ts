@@ -19,16 +19,16 @@ import { assertCoreEndpointAllowed } from './core.contract.assert';
  * CRITICAL: Prevents JWT leakage via error objects
  */
 function redactSensitiveData(error: unknown): {
-  message: string;
+  errorCode: string;
 } {
   if (error instanceof Error) {
     return {
-      message: error.message,
-      // NEVER include: request headers, full error object
+      errorCode: 'CORE_CLIENT_FAILED',
+      // NEVER include: request headers, full error object, error.message
     };
   }
   return {
-    message: 'Unknown error',
+    errorCode: 'CORE_CLIENT_FAILED',
   };
 }
 
@@ -148,7 +148,7 @@ export class CoreClient {
         message: 'Core API network error',
         correlationId,
         coreOrgId,
-        errorMessage: safeError.message,
+        errorCode: safeError.errorCode,
         // SAFE: No fetch error object
       });
       throw new Error('Core API network error');

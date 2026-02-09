@@ -2,9 +2,14 @@
   "name": "suite-shavi",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build:platform-admin": "npx tsc -p tsconfig.json",
+    "test:platform-admin": "npx jest -c jest.config.cjs modules/platform-admin/tests",
+    "test:platform-admin:unit": "npx jest -c jest.config.cjs modules/platform-admin/tests/unit",
+    "test:platform-admin:integration": "npx jest -c jest.config.cjs modules/platform-admin/tests/integration",
+    "verify:platform-admin": "npm run build:platform-admin && npm run test:platform-admin",
+    "test": "npm run test:platform-admin"
   },
   "repository": {
     "type": "git",

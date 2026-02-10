@@ -1,40 +1,55 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { OrganizationList } from './components/OrganizationList'
+import { OrganizationDetail } from './components/OrganizationDetail'
+import { OrganizationCreate } from './components/OrganizationCreate'
+
+type View = 'list' | 'detail' | 'create'
 
 function App() {
-  const allowedScreens = [
-    'Organization List',
-    'Organization Detail',
-    'Create Organization',
-    'Org Mapping Management',
-    'Internal User List',
-    'Create Internal User',
-    'User Detail',
-    'Audit Log Viewer'
-  ]
+  const [view, setView] = useState<View>('list')
+  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
+
+  const handleSelectOrganization = (id: string) => {
+    setSelectedOrgId(id)
+    setView('detail')
+  }
+
+  const handleCreateNew = () => {
+    setView('create')
+  }
+
+  const handleBackToList = () => {
+    setView('list')
+    setSelectedOrgId(null)
+  }
+
+  const handleCreateSuccess = () => {
+    setView('list')
+    setSelectedOrgId(null)
+  }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', fontFamily: 'system-ui, sans-serif' }}>
-      <nav style={{ width: '250px', borderRight: '1px solid #ddd', padding: '1rem', backgroundColor: '#f9f9f9' }}>
-        <h2 style={{ marginBottom: '1rem' }}>Platform Admin</h2>
-        <ul style={{ listStyle: 'none', padding: 0 }}>
-          {allowedScreens.map((screen) => (
-            <li key={screen} style={{ marginBottom: '0.5rem' }}>
-              <div style={{ padding: '0.5rem', cursor: 'not-allowed', color: '#666' }}>
-                {screen}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </nav>
-      <main style={{ flex: 1, padding: '2rem' }}>
-        <h1>Welcome to Platform Admin</h1>
-        <p style={{ color: '#666', marginTop: '1rem' }}>
-          Select a section from the navigation menu.
-        </p>
-        <div style={{ marginTop: '2rem', padding: '1rem', border: '1px dashed #ccc', borderRadius: '4px' }}>
-          <em>Module Status: Implementation Phase (Gate 20)</em>
-        </div>
-      </main>
+    <div style={{ fontFamily: 'system-ui, sans-serif', padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
+      {view === 'list' && (
+        <OrganizationList
+          onSelectOrganization={handleSelectOrganization}
+          onCreateNew={handleCreateNew}
+        />
+      )}
+
+      {view === 'detail' && selectedOrgId && (
+        <OrganizationDetail
+          organizationId={selectedOrgId}
+          onBack={handleBackToList}
+        />
+      )}
+
+      {view === 'create' && (
+        <OrganizationCreate
+          onBack={handleBackToList}
+          onSuccess={handleCreateSuccess}
+        />
+      )}
     </div>
   )
 }

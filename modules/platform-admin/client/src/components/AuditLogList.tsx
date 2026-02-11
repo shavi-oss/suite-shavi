@@ -71,12 +71,17 @@ export function AuditLogList() {
     return result === 'success' ? '#388e3c' : '#d32f2f'
   }
 
+  const isUnauthorized = (msg: string) => {
+    return msg.includes('Unauthorized') || msg.includes('Forbidden') || msg.includes('403') || msg.includes('401')
+  }
+
   if (loading) {
     return <LoadingState message="Loading audit logs..." />
   }
 
   if (error) {
-    return <ErrorState message={error} canRetry={true} onRetry={() => loadLogs(filters)} />
+    const canRetry = !isUnauthorized(error)
+    return <ErrorState message={error} canRetry={canRetry} onRetry={canRetry ? () => loadLogs(filters) : async () => {}} />
   }
 
   return (

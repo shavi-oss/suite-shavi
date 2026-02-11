@@ -48,7 +48,7 @@ export function OrganizationCreate({ onBack, onSuccess }: Props) {
         <ErrorState
           message={error.message}
           canRetry={error.canRetry}
-          onRetry={error.canRetry ? submit : undefined}
+          onRetry={error.canRetry ? submit : async () => {}}
         />
       )}
 

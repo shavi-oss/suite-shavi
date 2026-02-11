@@ -74,7 +74,7 @@ export function OrganizationDetail({ organizationId, onBack }: Props) {
         <ErrorState
           message={error.message}
           canRetry={error.canRetry}
-          onRetry={error.canRetry ? loadOrganization : undefined}
+          onRetry={error.canRetry ? loadOrganization : async () => {}}
         />
       </div>
     )
@@ -94,7 +94,7 @@ export function OrganizationDetail({ organizationId, onBack }: Props) {
         <ErrorState
           message={error.message}
           canRetry={error.canRetry}
-          onRetry={error.canRetry ? (organization.status === 'active' ? handleSuspend : handleUnsuspend) : undefined}
+          onRetry={error.canRetry ? (organization.status === 'active' ? handleSuspend : handleUnsuspend) : async () => {}}
         />
       )}
 

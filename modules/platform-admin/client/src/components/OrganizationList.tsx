@@ -43,7 +43,7 @@ export function OrganizationList({ onSelectOrganization, onCreateNew }: Props) {
         <ErrorState
           message={error.message}
           canRetry={error.canRetry}
-          onRetry={error.canRetry ? loadOrganizations : undefined}
+          onRetry={error.canRetry ? loadOrganizations : async () => {}}
         />
       </div>
     )

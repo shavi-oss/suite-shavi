@@ -25,10 +25,15 @@ export function InternalUserList({ onSelectUser, onCreateNew }: InternalUserList
       const data = await getInternalUsers()
       setUsers(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load internal users')
+      const message = err instanceof Error ? err.message : 'Failed to load internal users'
+      setError(message)
     } finally {
       setLoading(false)
     }
+  }
+
+  const isUnauthorized = (msg: string) => {
+    return msg.includes('Unauthorized') || msg.includes('Forbidden') || msg.includes('403') || msg.includes('401')
   }
 
   if (loading) {
@@ -36,7 +41,8 @@ export function InternalUserList({ onSelectUser, onCreateNew }: InternalUserList
   }
 
   if (error) {
-    return <ErrorState message={error} onRetry={loadUsers} />
+    const canRetry = !isUnauthorized(error)
+    return <ErrorState message={error} canRetry={canRetry} onRetry={canRetry ? loadUsers : async () => {}} />
   }
 
   if (users.length === 0) {

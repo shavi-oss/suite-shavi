@@ -25,7 +25,8 @@ export function InternalUserDetail({ userId, onBack }: InternalUserDetailProps) 
       const data = await getInternalUser(userId)
       setUser(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load user')
+      const message = err instanceof Error ? err.message : 'Failed to load user'
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -43,10 +44,19 @@ export function InternalUserDetail({ userId, onBack }: InternalUserDetailProps) 
       const updated = await deactivateInternalUser(user.id)
       setUser(updated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to deactivate user')
+      const message = err instanceof Error ? err.message : 'Failed to deactivate user'
+      setError(message)
     } finally {
       setDeactivating(false)
     }
+  }
+
+  const isUnauthorized = (msg: string) => {
+    return msg.includes('Unauthorized') || msg.includes('Forbidden') || msg.includes('403') || msg.includes('401')
+  }
+
+  const isNotFound = (msg: string) => {
+    return msg.includes('not found') || msg.includes('Not Found') || msg.includes('404')
   }
 
   if (loading) {
@@ -54,11 +64,12 @@ export function InternalUserDetail({ userId, onBack }: InternalUserDetailProps) 
   }
 
   if (error) {
-    return <ErrorState message={error} onRetry={loadUser} />
+    const canRetry = !isUnauthorized(error) && !isNotFound(error)
+    return <ErrorState message={error} canRetry={canRetry} onRetry={canRetry ? loadUser : async () => {}} />
   }
 
   if (!user) {
-    return <ErrorState message="User not found" />
+    return <ErrorState message="User not found" canRetry={false} onRetry={async () => {}} />
   }
 
   const formatDate = (dateString: string) => {

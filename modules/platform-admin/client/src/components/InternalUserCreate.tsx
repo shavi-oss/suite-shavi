@@ -29,10 +29,19 @@ export function InternalUserCreate({ onBack, onSuccess }: InternalUserCreateProp
       await createInternalUser(formData)
       onSuccess()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create user')
+      const message = err instanceof Error ? err.message : 'Failed to create user'
+      setError(message)
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const isUnauthorized = (msg: string) => {
+    return msg.includes('Unauthorized') || msg.includes('Forbidden') || msg.includes('403') || msg.includes('401')
+  }
+
+  const isValidationError = (msg: string) => {
+    return msg.includes('Bad Request') || msg.includes('Validation') || msg.includes('Invalid') || msg.includes('400')
   }
 
   if (submitting) {
@@ -61,7 +70,11 @@ export function InternalUserCreate({ onBack, onSuccess }: InternalUserCreateProp
 
       {error && (
         <div style={{ marginBottom: '1rem' }}>
-          <ErrorState message={error} onRetry={submit} />
+          <ErrorState 
+            message={error} 
+            canRetry={!isUnauthorized(error) && !isValidationError(error)} 
+            onRetry={(!isUnauthorized(error) && !isValidationError(error)) ? submit : async () => {}} 
+          />
         </div>
       )}
 

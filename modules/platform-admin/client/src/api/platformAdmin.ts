@@ -15,6 +15,23 @@ interface CreateOrganizationDto {
   name: string
 }
 
+interface InternalUser {
+  id: string
+  email: string
+  name: string
+  role: 'platform_admin' | 'developer_ops' | 'support' | 'viewer'
+  status: 'active' | 'deactivated'
+  createdAt: string
+  updatedAt: string
+  createdBy: string
+}
+
+interface CreateInternalUserDto {
+  name: string
+  email: string
+  role: 'platform_admin' | 'developer_ops' | 'support' | 'viewer'
+}
+
 interface ApiError {
   message: string
   statusCode: number
@@ -98,4 +115,52 @@ export async function unsuspendOrganization(id: string): Promise<Organization> {
   return response.json()
 }
 
-export type { Organization, CreateOrganizationDto, ApiError }
+export async function getInternalUsers(): Promise<InternalUser[]> {
+  const response = await fetchWithCorrelation(`${API_BASE}/internal-users`)
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch internal users')
+  }
+
+  return response.json()
+}
+
+export async function getInternalUser(id: string): Promise<InternalUser> {
+  const response = await fetchWithCorrelation(`${API_BASE}/internal-users/${id}`)
+  
+  if (!response.ok) {
+    if (response.status === 404) {
+      throw new Error('Internal user not found')
+    }
+    throw new Error('Failed to fetch internal user')
+  }
+
+  return response.json()
+}
+
+export async function createInternalUser(dto: CreateInternalUserDto): Promise<InternalUser> {
+  const response = await fetchWithCorrelation(`${API_BASE}/internal-users`, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to create internal user')
+  }
+
+  return response.json()
+}
+
+export async function deactivateInternalUser(id: string): Promise<InternalUser> {
+  const response = await fetchWithCorrelation(`${API_BASE}/internal-users/${id}/deactivate`, {
+    method: 'PATCH',
+  })
+  
+  if (!response.ok) {
+    throw new Error('Failed to deactivate internal user')
+  }
+
+  return response.json()
+}
+
+export type { Organization, CreateOrganizationDto, InternalUser, CreateInternalUserDto, ApiError }

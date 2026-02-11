@@ -1,5 +1,10 @@
 
 node_modules/
-
-
+.agent/
+.vscode/
+x
+modules/platform-admin/governance/AGENT_COMPANY_POLICY.MD
+modules/platform-admin/governance/CHANGE_SAFETY_PROTOCOL.md
+modules/platform-admin/governance/CODING_STANDARDS_TYPESCRIPT.md
+modules/platform-admin/governance/COMMIT_AND_PR_RULES.md
 .env

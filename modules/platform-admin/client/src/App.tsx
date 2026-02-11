@@ -2,33 +2,81 @@ import { useState } from 'react'
 import { OrganizationList } from './components/OrganizationList'
 import { OrganizationDetail } from './components/OrganizationDetail'
 import { OrganizationCreate } from './components/OrganizationCreate'
+import { InternalUserList } from './components/InternalUserList'
+import { InternalUserDetail } from './components/InternalUserDetail'
+import { InternalUserCreate } from './components/InternalUserCreate'
+import { RoleList } from './components/RoleList'
 import { Header } from './components/Header'
 import { NavigationRail } from './components/NavigationRail'
 import { WorkspaceContainer } from './components/WorkspaceContainer'
 
-type View = 'list' | 'detail' | 'create'
+type Section = 'organizations' | 'users' | 'roles'
+type OrgView = 'list' | 'detail' | 'create'
+type UserView = 'list' | 'detail' | 'create'
 
 function App() {
-  const [view, setView] = useState<View>('list')
+  const [section, setSection] = useState<Section>('organizations')
+  
+  // Organizations state
+  const [orgView, setOrgView] = useState<OrgView>('list')
   const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null)
 
+  // Users state
+  const [userView, setUserView] = useState<UserView>('list')
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
+
+  // Organizations handlers
   const handleSelectOrganization = (id: string) => {
     setSelectedOrgId(id)
-    setView('detail')
+    setOrgView('detail')
   }
 
-  const handleCreateNew = () => {
-    setView('create')
+  const handleCreateNewOrg = () => {
+    setOrgView('create')
   }
 
-  const handleBackToList = () => {
-    setView('list')
+  const handleBackToOrgList = () => {
+    setOrgView('list')
     setSelectedOrgId(null)
   }
 
-  const handleCreateSuccess = () => {
-    setView('list')
+  const handleOrgCreateSuccess = () => {
+    setOrgView('list')
     setSelectedOrgId(null)
+  }
+
+  // Users handlers
+  const handleSelectUser = (id: string) => {
+    setSelectedUserId(id)
+    setUserView('detail')
+  }
+
+  const handleCreateNewUser = () => {
+    setUserView('create')
+  }
+
+  const handleBackToUserList = () => {
+    setUserView('list')
+    setSelectedUserId(null)
+  }
+
+  const handleUserCreateSuccess = () => {
+    setUserView('list')
+    setSelectedUserId(null)
+  }
+
+  // Section navigation handler
+  const handleSectionChange = (newSection: Section) => {
+    setSection(newSection)
+    // Reset views when switching sections
+    if (newSection === 'organizations') {
+      setOrgView('list')
+      setSelectedOrgId(null)
+    } else if (newSection === 'users') {
+      setUserView('list')
+      setSelectedUserId(null)
+    }
+    // roles section has no view state to reset
   }
 
   return (
@@ -43,28 +91,59 @@ function App() {
     >
       <Header />
       <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-        <NavigationRail />
+        <NavigationRail activeSection={section} onSectionChange={handleSectionChange} />
         <WorkspaceContainer>
-          {view === 'list' && (
-            <OrganizationList
-              onSelectOrganization={handleSelectOrganization}
-              onCreateNew={handleCreateNew}
-            />
+          {section === 'organizations' && (
+            <>
+              {orgView === 'list' && (
+                <OrganizationList
+                  onSelectOrganization={handleSelectOrganization}
+                  onCreateNew={handleCreateNewOrg}
+                />
+              )}
+
+              {orgView === 'detail' && selectedOrgId && (
+                <OrganizationDetail
+                  organizationId={selectedOrgId}
+                  onBack={handleBackToOrgList}
+                />
+              )}
+
+              {orgView === 'create' && (
+                <OrganizationCreate
+                  onBack={handleBackToOrgList}
+                  onSuccess={handleOrgCreateSuccess}
+                />
+              )}
+            </>
           )}
 
-          {view === 'detail' && selectedOrgId && (
-            <OrganizationDetail
-              organizationId={selectedOrgId}
-              onBack={handleBackToList}
-            />
+          {section === 'users' && (
+            <>
+              {userView === 'list' && (
+                <InternalUserList
+                  onSelectUser={handleSelectUser}
+                  onCreateNew={handleCreateNewUser}
+                />
+              )}
+
+              {userView === 'detail' && selectedUserId && (
+                <InternalUserDetail
+                  userId={selectedUserId}
+                  onBack={handleBackToUserList}
+                />
+              )}
+
+              {userView === 'create' && (
+                <InternalUserCreate
+                  onBack={handleBackToUserList}
+                  onSuccess={handleUserCreateSuccess}
+                />
+              )}
+            </>
           )}
 
-          {view === 'create' && (
-            <OrganizationCreate
-              onBack={handleBackToList}
-              onSuccess={handleCreateSuccess}
-            />
-          )}
+          {section === 'roles' && <RoleList />}
         </WorkspaceContainer>
       </div>
     </div>

@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { getOrganization, suspendOrganization, unsuspendOrganization, type Organization } from '../api/platformAdmin'
+import { normalizeError } from '../utils/errors'
+import { LoadingState } from './LoadingState'
+import { ErrorState } from './ErrorState'
 
 interface Props {
   organizationId: string
@@ -9,7 +12,7 @@ interface Props {
 export function OrganizationDetail({ organizationId, onBack }: Props) {
   const [organization, setOrganization] = useState<Organization | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; canRetry: boolean } | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
 
   const loadOrganization = async () => {
@@ -19,7 +22,8 @@ export function OrganizationDetail({ organizationId, onBack }: Props) {
       const data = await getOrganization(organizationId)
       setOrganization(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load organization')
+      const normalized = normalizeError(err)
+      setError({ message: normalized.message, canRetry: normalized.canRetry })
     } finally {
       setLoading(false)
     }
@@ -37,7 +41,8 @@ export function OrganizationDetail({ organizationId, onBack }: Props) {
       const updated = await suspendOrganization(organization.id)
       setOrganization(updated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to suspend organization')
+      const normalized = normalizeError(err)
+      setError({ message: normalized.message, canRetry: normalized.canRetry })
     } finally {
       setActionLoading(false)
     }
@@ -51,22 +56,26 @@ export function OrganizationDetail({ organizationId, onBack }: Props) {
       const updated = await unsuspendOrganization(organization.id)
       setOrganization(updated)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to unsuspend organization')
+      const normalized = normalizeError(err)
+      setError({ message: normalized.message, canRetry: normalized.canRetry })
     } finally {
       setActionLoading(false)
     }
   }
 
   if (loading) {
-    return <div>Loading organization...</div>
+    return <LoadingState message="Loading organization..." />
   }
 
   if (error && !organization) {
     return (
       <div>
         <button onClick={onBack} style={{ marginBottom: '1rem' }}>← Back to List</button>
-        <div style={{ color: 'red', marginBottom: '1rem' }}>Error: {error}</div>
-        <button onClick={loadOrganization}>Retry</button>
+        <ErrorState
+          message={error.message}
+          canRetry={error.canRetry}
+          onRetry={error.canRetry ? loadOrganization : undefined}
+        />
       </div>
     )
   }
@@ -82,9 +91,11 @@ export function OrganizationDetail({ organizationId, onBack }: Props) {
       <h1>Organization Details</h1>
 
       {error && (
-        <div style={{ color: 'red', marginBottom: '1rem', padding: '0.5rem', border: '1px solid red', borderRadius: '4px' }}>
-          Error: {error}
-        </div>
+        <ErrorState
+          message={error.message}
+          canRetry={error.canRetry}
+          onRetry={error.canRetry ? (organization.status === 'active' ? handleSuspend : handleUnsuspend) : undefined}
+        />
       )}
 
       <div style={{ marginTop: '1rem' }}>

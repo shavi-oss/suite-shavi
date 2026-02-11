@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import { createOrganization } from '../api/platformAdmin'
+import { normalizeError } from '../utils/errors'
+import { ErrorState } from './ErrorState'
 
 interface Props {
   onBack: () => void
@@ -9,13 +11,13 @@ interface Props {
 export function OrganizationCreate({ onBack, onSuccess }: Props) {
   const [name, setName] = useState('')
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; canRetry: boolean } | null>(null)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!name.trim()) {
-      setError('Organization name is required')
+      setError({ message: 'Organization name is required', canRetry: false })
       return
     }
 
@@ -26,7 +28,8 @@ export function OrganizationCreate({ onBack, onSuccess }: Props) {
       await createOrganization({ name: name.trim() })
       onSuccess()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create organization')
+      const normalized = normalizeError(err)
+      setError({ message: normalized.message, canRetry: normalized.canRetry })
     } finally {
       setLoading(false)
     }
@@ -39,9 +42,11 @@ export function OrganizationCreate({ onBack, onSuccess }: Props) {
       <h1>Create Organization</h1>
 
       {error && (
-        <div style={{ color: 'red', marginBottom: '1rem', padding: '0.5rem', border: '1px solid red', borderRadius: '4px' }}>
-          Error: {error}
-        </div>
+        <ErrorState
+          message={error.message}
+          canRetry={error.canRetry}
+          onRetry={error.canRetry ? () => handleSubmit(new Event('submit') as any) : undefined}
+        />
       )}
 
       <form onSubmit={handleSubmit} style={{ marginTop: '1rem', maxWidth: '400px' }}>

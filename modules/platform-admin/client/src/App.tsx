@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 import { OrganizationList } from './components/OrganizationList'
 import { OrganizationDetail } from './components/OrganizationDetail'
 import { OrganizationCreate } from './components/OrganizationCreate'

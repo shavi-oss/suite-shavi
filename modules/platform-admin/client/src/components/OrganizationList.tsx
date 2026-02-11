@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react'
 import { getOrganizations, type Organization } from '../api/platformAdmin'
+import { normalizeError } from '../utils/errors'
+import { LoadingState } from './LoadingState'
+import { EmptyState } from './EmptyState'
+import { ErrorState } from './ErrorState'
 
 interface Props {
   onSelectOrganization: (id: string) => void
@@ -9,7 +13,7 @@ interface Props {
 export function OrganizationList({ onSelectOrganization, onCreateNew }: Props) {
   const [organizations, setOrganizations] = useState<Organization[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [error, setError] = useState<{ message: string; canRetry: boolean } | null>(null)
 
   const loadOrganizations = async () => {
     setLoading(true)
@@ -18,7 +22,8 @@ export function OrganizationList({ onSelectOrganization, onCreateNew }: Props) {
       const data = await getOrganizations()
       setOrganizations(data)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load organizations')
+      const normalized = normalizeError(err)
+      setError({ message: normalized.message, canRetry: normalized.canRetry })
     } finally {
       setLoading(false)
     }
@@ -29,14 +34,17 @@ export function OrganizationList({ onSelectOrganization, onCreateNew }: Props) {
   }, [])
 
   if (loading) {
-    return <div>Loading organizations...</div>
+    return <LoadingState message="Loading organizations..." />
   }
 
   if (error) {
     return (
       <div>
-        <div style={{ color: 'red', marginBottom: '1rem' }}>Error: {error}</div>
-        <button onClick={loadOrganizations}>Retry</button>
+        <ErrorState
+          message={error.message}
+          canRetry={error.canRetry}
+          onRetry={error.canRetry ? loadOrganizations : undefined}
+        />
       </div>
     )
   }
@@ -49,7 +57,11 @@ export function OrganizationList({ onSelectOrganization, onCreateNew }: Props) {
       </div>
 
       {organizations.length === 0 ? (
-        <p>No organizations found.</p>
+        <EmptyState
+          message="No organizations found. Create one to get started."
+          actionLabel="Create Organization"
+          onAction={onCreateNew}
+        />
       ) : (
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>

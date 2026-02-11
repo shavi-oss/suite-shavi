@@ -1,4 +1,4 @@
-type Section = 'organizations' | 'users' | 'roles'
+type Section = 'organizations' | 'users' | 'roles' | 'audit'
 
 interface NavigationRailProps {
   activeSection: Section
@@ -55,6 +55,13 @@ export function NavigationRail({ activeSection, onSectionChange }: NavigationRai
         onClick={() => onSectionChange('roles')}
       >
         ROL
+      </button>
+      <button
+        style={navItemStyle(activeSection === 'audit')}
+        title="Audit Logs"
+        onClick={() => onSectionChange('audit')}
+      >
+        AUD
       </button>
     </nav>
   )

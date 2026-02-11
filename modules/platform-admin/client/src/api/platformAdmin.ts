@@ -163,4 +163,44 @@ export async function deactivateInternalUser(id: string): Promise<InternalUser> 
   return response.json()
 }
 
-export type { Organization, CreateOrganizationDto, InternalUser, CreateInternalUserDto, ApiError }
+interface AuditLog {
+  id: string
+  performedAt: string
+  action: string
+  entityType: string
+  entityId: string
+  performedBy: string
+  result: 'success' | 'failure'
+  correlationId?: string
+}
+
+interface AuditLogFilters {
+  entityType?: string
+  action?: string
+  performedBy?: string
+  from?: string
+  to?: string
+}
+
+export async function getAuditLogs(filters?: AuditLogFilters): Promise<AuditLog[]> {
+  const params = new URLSearchParams()
+  
+  if (filters?.entityType) params.append('entityType', filters.entityType)
+  if (filters?.action) params.append('action', filters.action)
+  if (filters?.performedBy) params.append('performedBy', filters.performedBy)
+  if (filters?.from) params.append('from', filters.from)
+  if (filters?.to) params.append('to', filters.to)
+  
+  const queryString = params.toString()
+  const url = queryString ? `${API_BASE}/audit-logs?${queryString}` : `${API_BASE}/audit-logs`
+  
+  const response = await fetchWithCorrelation(url)
+  
+  if (!response.ok) {
+    throw new Error('Failed to fetch audit logs')
+  }
+
+  return response.json()
+}
+
+export type { Organization, CreateOrganizationDto, InternalUser, CreateInternalUserDto, AuditLog, AuditLogFilters, ApiError }

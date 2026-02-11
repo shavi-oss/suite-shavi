@@ -6,11 +6,12 @@ import { InternalUserList } from './components/InternalUserList'
 import { InternalUserDetail } from './components/InternalUserDetail'
 import { InternalUserCreate } from './components/InternalUserCreate'
 import { RoleList } from './components/RoleList'
+import { AuditLogList } from './components/AuditLogList'
 import { Header } from './components/Header'
 import { NavigationRail } from './components/NavigationRail'
 import { WorkspaceContainer } from './components/WorkspaceContainer'
 
-type Section = 'organizations' | 'users' | 'roles'
+type Section = 'organizations' | 'users' | 'roles' | 'audit'
 type OrgView = 'list' | 'detail' | 'create'
 type UserView = 'list' | 'detail' | 'create'
 
@@ -144,6 +145,8 @@ function App() {
           )}
 
           {section === 'roles' && <RoleList />}
+
+          {section === 'audit' && <AuditLogList />}
         </WorkspaceContainer>
       </div>
     </div>

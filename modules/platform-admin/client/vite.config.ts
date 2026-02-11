@@ -5,7 +5,6 @@ import { resolve } from 'path'
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [react()],
-  root: 'modules/platform-admin/client',
   build: {
     outDir: '../../../dist/platform-admin/client',
     emptyOutDir: true,

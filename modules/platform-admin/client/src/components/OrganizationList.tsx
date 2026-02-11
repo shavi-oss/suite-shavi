@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { getOrganizations, type Organization } from '../api/platformAdmin'
 import { normalizeError } from '../utils/errors'
 import { LoadingState } from './LoadingState'

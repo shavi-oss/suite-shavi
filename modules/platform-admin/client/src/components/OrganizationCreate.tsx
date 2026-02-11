@@ -13,9 +13,7 @@ export function OrganizationCreate({ onBack, onSuccess }: Props) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<{ message: string; canRetry: boolean } | null>(null)
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    
+  const submit = async () => {
     if (!name.trim()) {
       setError({ message: 'Organization name is required', canRetry: false })
       return
@@ -35,6 +33,11 @@ export function OrganizationCreate({ onBack, onSuccess }: Props) {
     }
   }
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    await submit()
+  }
+
   return (
     <div>
       <button onClick={onBack} style={{ marginBottom: '1rem' }}>← Back to List</button>
@@ -45,7 +48,7 @@ export function OrganizationCreate({ onBack, onSuccess }: Props) {
         <ErrorState
           message={error.message}
           canRetry={error.canRetry}
-          onRetry={error.canRetry ? () => handleSubmit(new Event('submit') as any) : undefined}
+          onRetry={error.canRetry ? submit : undefined}
         />
       )}
 

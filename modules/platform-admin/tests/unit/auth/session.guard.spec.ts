@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { SessionGuard } from '../../../src/auth/session.guard';
 import { SessionService } from '../../../src/auth/session.service';
+import { JwtStorageService } from '../../../src/auth/jwt-storage.service';
 import { ExecutionContext, UnauthorizedException } from '@nestjs/common';
 
 type Request = any;
@@ -8,14 +9,16 @@ type Request = any;
 describe('SessionGuard', () => {
   let guard: SessionGuard;
   let sessionService: SessionService;
+  let jwtStorageService: JwtStorageService;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
-      providers: [SessionGuard, SessionService],
+      providers: [SessionGuard, SessionService, JwtStorageService],
     }).compile();
 
     guard = module.get<SessionGuard>(SessionGuard);
     sessionService = module.get<SessionService>(SessionService);
+    jwtStorageService = module.get<JwtStorageService>(JwtStorageService);
   });
 
   it('should be defined', () => {
@@ -23,9 +26,11 @@ describe('SessionGuard', () => {
   });
 
   describe('canActivate', () => {
-    it('should return true for valid session', () => {
+    it('should return true for valid session with Core JWT', () => {
       const userId = 'test-user-123';
+      const coreJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
       const sessionId = sessionService.createSession(userId);
+      jwtStorageService.set(userId, coreJwt);
 
       const mockRequest = {
         cookies: { sessionId },
@@ -41,6 +46,7 @@ describe('SessionGuard', () => {
 
       expect(result).toBe(true);
       expect((mockRequest as any).userId).toBe(userId);
+      expect((mockRequest as any).coreJwt).toBe(coreJwt);
     });
 
     it('should throw 401 when session cookie is missing', () => {
@@ -123,7 +129,9 @@ describe('SessionGuard', () => {
 
     it('should attach userId to request on successful validation', () => {
       const userId = 'test-user-123';
+      const coreJwt = 'jwt-token';
       const sessionId = sessionService.createSession(userId);
+      jwtStorageService.set(userId, coreJwt);
 
       const mockRequest = {
         cookies: { sessionId },
@@ -138,6 +146,47 @@ describe('SessionGuard', () => {
       guard.canActivate(mockContext);
 
       expect((mockRequest as any).userId).toBe(userId);
+    });
+
+    it('should throw 401 when Core JWT is missing (fail-closed)', () => {
+      const userId = 'test-user-123';
+      const sessionId = sessionService.createSession(userId);
+      // Note: NOT storing Core JWT in jwtStorageService
+
+      const mockRequest = {
+        cookies: { sessionId },
+      } as unknown as Request;
+
+      const mockContext = {
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
+        }),
+      } as ExecutionContext;
+
+      expect(() => {
+        guard.canActivate(mockContext);
+      }).toThrow(UnauthorizedException);
+    });
+
+    it('should attach Core JWT to request context', () => {
+      const userId = 'test-user-123';
+      const coreJwt = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.test';
+      const sessionId = sessionService.createSession(userId);
+      jwtStorageService.set(userId, coreJwt);
+
+      const mockRequest = {
+        cookies: { sessionId },
+      } as unknown as Request;
+
+      const mockContext = {
+        switchToHttp: () => ({
+          getRequest: () => mockRequest,
+        }),
+      } as ExecutionContext;
+
+      guard.canActivate(mockContext);
+
+      expect((mockRequest as any).coreJwt).toBe(coreJwt);
     });
   });
 });

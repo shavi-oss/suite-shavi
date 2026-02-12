@@ -33,6 +33,8 @@ import { AuditRepository } from './src/audit/audit.repository';
 import { OrganizationController } from './src/organizations/organization.controller';
 import { OrganizationService } from './src/organizations/organization.service';
 import { AuditController } from './src/audit/audit.controller';
+import { AuthController } from './src/auth/auth.controller';
+import { SessionService } from './src/auth/session.service';
 
 @Module({
   imports: [PrismaModule],
@@ -42,6 +44,7 @@ import { AuditController } from './src/audit/audit.controller';
     OrgMappingController,
     OrganizationController,
     AuditController,
+    AuthController,
   ],
   providers: [
     {
@@ -57,6 +60,7 @@ import { AuditController } from './src/audit/audit.controller';
     CoreClient,
     AuditService,
     AuditRepository,
+    SessionService,
   ],
 })
 export class PlatformAdminModule {}

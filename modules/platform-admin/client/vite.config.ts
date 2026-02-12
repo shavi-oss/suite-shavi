@@ -14,7 +14,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api/platform-admin': {
-        target: 'http://localhost:3001', // Assuming BFF runs on 3001
+        target: 'http://localhost:4000',
         changeOrigin: true,
       }
     }

@@ -5,6 +5,7 @@ import {
   UnauthorizedException,
   ForbiddenException,
   SetMetadata,
+  Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { Resource, Action, hasPermission } from './permissions.map';
@@ -38,6 +39,8 @@ export const RequirePermission = (resource: Resource, action: Action) =>
 
 @Injectable()
 export class RbacGuard implements CanActivate {
+  private readonly logger = new Logger(RbacGuard.name);
+
   constructor(private readonly reflector: Reflector) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -136,7 +139,7 @@ export class RbacGuard implements CanActivate {
     } catch (error) {
       // Audit failure must not prevent denial of access (fail-closed)
       // Log error server-side but do not expose details
-      console.error('Authorization violation audit failed (fail-closed maintained)', {
+      this.logger.error('Authorization violation audit failed (fail-closed maintained)', {
         rule,
         errorCode: 'RBAC_AUDIT_FAILED',
       });

@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "../../dist/modules/platform-admin"
+  },
+  "include": [
+    "src/**/*",
+    "host/**/*",
+    "controllers/**/*",
+    "guards/**/*",
+    "dto/**/*",
+    "prisma/**/*",
+    "platform-admin.module.ts",
+    "index.ts"
+  ],
+  "exclude": [
+    "client/**/*",
+    "node_modules",
+    "tests/**/*"
+  ]
+}

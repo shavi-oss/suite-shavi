@@ -30,16 +30,26 @@ import { OrgMappingRepository } from './src/org-mapping/org-mapping.repository';
 import { CoreClient } from './src/core-adapter/core.client';
 import { AuditService } from './src/audit/audit.service';
 import { AuditRepository } from './src/audit/audit.repository';
+import { OrganizationController } from './src/organizations/organization.controller';
+import { OrganizationService } from './src/organizations/organization.service';
+import { AuditController } from './src/audit/audit.controller';
 
 @Module({
   imports: [PrismaModule],
-  controllers: [HealthController, InternalUserController, OrgMappingController],
+  controllers: [
+    HealthController,
+    InternalUserController,
+    OrgMappingController,
+    OrganizationController,
+    AuditController,
+  ],
   providers: [
     {
       provide: APP_GUARD,
       useClass: DenyAllGuard,
     },
     OrganizationRepository,
+    OrganizationService,
     InternalUserService,
     InternalUserRepository,
     OrgMappingService,

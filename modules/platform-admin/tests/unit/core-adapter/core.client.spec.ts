@@ -130,5 +130,15 @@ describe('CoreClient', () => {
       await expect(client.validateOrganizationExists('core-1', 'jwt-token', 'corr-1'))
         .rejects.toThrow('Core API network error');
     });
+
+    it('should throw error when correlation ID is missing (runtime assertion)', async () => {
+      await expect(client.validateOrganizationExists('core-1', 'jwt-token', ''))
+        .rejects.toThrow('Correlation ID is required for Core API calls');
+    });
+
+    it('should throw error when correlation ID is whitespace only (runtime assertion)', async () => {
+      await expect(client.validateOrganizationExists('core-1', 'jwt-token', '   '))
+        .rejects.toThrow('Correlation ID is required for Core API calls');
+    });
   });
 });

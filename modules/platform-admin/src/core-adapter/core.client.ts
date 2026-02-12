@@ -68,6 +68,11 @@ export class CoreClient {
     // Evidence: CORE_V1_INTEGRATION_LOCK.md Section 8.1
     assertCoreEndpointAllowed('GET', `/api/v1/organizations/${coreOrgId}`);
 
+    // RUNTIME CONTRACT ASSERTION: Correlation ID must be present
+    if (!correlationId || correlationId.trim() === '') {
+      throw new Error('Correlation ID is required for Core API calls');
+    }
+
     const url = `${this.coreBaseUrl}/api/v1/organizations/${coreOrgId}`;
 
     try {

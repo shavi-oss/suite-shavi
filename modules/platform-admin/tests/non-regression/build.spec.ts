@@ -22,18 +22,30 @@ describe('Build Non-Regression', () => {
   });
 
   describe('Gate 4.9 — controller constraints', () => {
-    it('should have exactly three controllers (Gate 3)', () => {
-      // Gate 3: Verify 3 controllers (HealthController, InternalUserController, OrgMappingController)
-      // Evidence: platform-admin.module.ts line 34
+    it('should have exactly six controllers (Gate 53B)', () => {
+      // Gate 53B: Verify 6 controllers (reconciled with post-52A reality)
+      // Evidence: platform-admin.module.ts lines 42-49
       const controllers = Reflect.getMetadata('controllers', PlatformAdminModule);
       expect(controllers).toBeDefined();
-      expect(controllers.length).toBe(3);
+      expect(controllers.length).toBe(6);
       
       // Verify exact controller set (order-independent)
       const controllerNames = controllers.map((c: any) => c.name);
-      expect(controllerNames).toContain('HealthController');
-      expect(controllerNames).toContain('InternalUserController');
-      expect(controllerNames).toContain('OrgMappingController');
+      const expectedControllers = [
+        'HealthController',
+        'InternalUserController',
+        'OrgMappingController',
+        'OrganizationController',
+        'AuditController',
+        'AuthController',
+      ];
+      
+      expectedControllers.forEach(name => {
+        expect(controllerNames).toContain(name);
+      });
+      
+      // Fail if extra controllers exist
+      expect(controllerNames.length).toBe(expectedControllers.length);
     });
 
     it('should have exactly one route (/platform-admin/health)', () => {

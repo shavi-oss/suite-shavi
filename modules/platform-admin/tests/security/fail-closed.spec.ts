@@ -86,13 +86,18 @@ describe('Fail-Closed Security', () => {
       expect(metadata).toContain(ExplicitAllowGuard);
     });
 
-    it('should use ExplicitAllowGuard EXACTLY once across all controllers (Gate 4.10)', () => {
-      // Scan all controllers for ExplicitAllowGuard usage
+    it('should use ExplicitAllowGuard EXACTLY 4 times in allowed controllers only (Gate 53B)', () => {
+      // Gate 53B: Reconcile with post-52A reality (4 usages in HealthController + AuthController)
+      // Allowed controllers: HealthController, AuthController
+      // Forbidden controllers: InternalUserController, OrgMappingController, OrganizationController, AuditController
       const controllers = Reflect.getMetadata('controllers', PlatformAdminModule) || [];
       let guardUsageCount = 0;
+      const allowedControllers = ['HealthController', 'AuthController'];
+      const usages: Array<{ controller: string; method: string }> = [];
 
       controllers.forEach((ControllerClass: any) => {
         const instance = new ControllerClass();
+        const controllerName = ControllerClass.name;
         const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(instance))
           .filter(name => name !== 'constructor');
         
@@ -100,11 +105,26 @@ describe('Fail-Closed Security', () => {
           const guards = Reflect.getMetadata('__guards__', instance[method]) || [];
           if (guards.includes(ExplicitAllowGuard)) {
             guardUsageCount++;
+            usages.push({ controller: controllerName, method });
+            
+            // FAIL if usage detected outside allowlist
+            if (!allowedControllers.includes(controllerName)) {
+              throw new Error(
+                `ExplicitAllowGuard usage detected outside allowlist: ${controllerName}.${method}. ` +
+                `Allowed controllers: ${allowedControllers.join(', ')}`
+              );
+            }
           }
         });
       });
 
-      expect(guardUsageCount).toBe(1); // EXACTLY one usage
+      // EXACTLY 4 usages (strict count, no ranges)
+      expect(guardUsageCount).toBe(4);
+      
+      // All usages must be in allowed controllers
+      usages.forEach(({ controller }) => {
+        expect(allowedControllers).toContain(controller);
+      });
     });
   });
 

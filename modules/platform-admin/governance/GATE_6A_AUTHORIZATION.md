@@ -63,7 +63,7 @@ Gate 6A is considered PASS only if:
 - `DenyAllGuard` remains `APP_GUARD`
 - `ExplicitAllowGuard` usages = **4**
 - No dependency drift
-- `npx tsc --noEmit` PASS
+- `npx tsc -p modules/platform-admin/tsconfig.bff.json --noEmit` PASS
 - `npm run test:platform-admin` PASS
 
 ---
@@ -76,7 +76,7 @@ git diff --name-only
 git diff --stat
 git diff package.json
 git diff package-lock.json
-npx tsc --noEmit
+npx tsc -p modules/platform-admin/tsconfig.bff.json --noEmit
 npm run test:platform-admin
 ```
 

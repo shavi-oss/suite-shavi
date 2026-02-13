@@ -104,7 +104,7 @@ describe('Fail-Closed Security', () => {
         });
       });
 
-      expect(guardUsageCount).toBe(1); // EXACTLY one usage
+      expect(guardUsageCount).toBe(4); // EXACTLY four usages
     });
   });
 

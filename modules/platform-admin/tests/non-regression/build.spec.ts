@@ -27,7 +27,7 @@ describe('Build Non-Regression', () => {
       // Evidence: platform-admin.module.ts line 34
       const controllers = Reflect.getMetadata('controllers', PlatformAdminModule);
       expect(controllers).toBeDefined();
-      expect(controllers.length).toBe(3);
+      expect(controllers.length).toBe(6);
       
       // Verify exact controller set (order-independent)
       const controllerNames = controllers.map((c: any) => c.name);

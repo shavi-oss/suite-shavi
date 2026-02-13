@@ -81,7 +81,9 @@ This baseline applies to all components within Suite layer:
 
 ### 3.3 Server-Only Core Tokens
 
-**MUST**: Core JWT/service tokens are generated, stored, and used ONLY on server-side (BFF).
+**MUST**: Core user-scoped JWT tokens are used ONLY on server-side (BFF).
+
+**MUST NOT**: Assume existence of Core-issued service tokens (not available in Core Contract v1).
 
 **MUST NOT**: Core tokens ever reach UI, client-side code, browser storage, or mobile app storage.
 
@@ -117,13 +119,24 @@ This baseline applies to all components within Suite layer:
 
 - BFF validates UI tokens on every request
 - BFF enforces organizationId scoping on all Suite DB operations
-- BFF obtains Core service token independently (server-to-server)
+- BFF forwards the authenticated user-scoped JWT to Core (server-side only)
 
-**Core Integration Authentication**:
+**Core Integration Authentication (Core v1 Reality)**:
 
-- BFF authenticates to Core using Core-issued service token
-- Service token is rotated according to Core's policy (TODO: define rotation frequency)
-- Service token is stored securely (see 4.5 Secrets Management)
+- Core v1 supports **User-Scoped JWT authentication ONLY**
+- Service-to-service authentication is NOT AVAILABLE in Core v1
+- No Core-issued service tokens exist in Core Contract v1
+- No OAuth2 client-credentials flow
+- No refresh token mechanism provided by Core v1
+
+**BFF → Core Authentication Model**:
+
+- BFF forwards the **user-scoped JWT** to Core using:
+  `Authorization: Bearer <jwt-token>`
+- JWT must contain claim: `organizationId`
+- JWT forwarding occurs SERVER-SIDE only
+- Browser/UI MUST NEVER see or store Core JWT
+- Core JWT MUST NEVER be logged or persisted
 
 ### 4.2 Token Handling Rules
 
@@ -138,14 +151,12 @@ This baseline applies to all components within Suite layer:
 - Short-lived (TODO: define TTL, e.g., 15 minutes)
 - Refreshed via secure refresh token flow (TODO: define refresh token storage and rotation)
 
-**Core Service Tokens**:
+**Core Authentication Tokens (Core v1)**:
 
-- Issued by Core
-- Stored ONLY in BFF server environment (never in UI)
-- Rotated periodically (TODO: define rotation policy)
-- Never logged, never included in error messages
-- Transmitted only over TLS
-
+- Core v1 does NOT issue service tokens
+- Core authentication relies on user-scoped JWT only
+- BFF must forward user-scoped JWT to Core
+- No token minting or refresh mechanism exists in Core v1
 **MUST NOT**:
 
 - Store Core tokens in UI
@@ -182,7 +193,7 @@ This baseline applies to all components within Suite layer:
 
 **Principles**:
 
-- All secrets (DB credentials, Core service token, API keys) MUST be stored in environment variables or dedicated secret store
+- All secrets (DB credentials, API keys) MUST be stored in environment variables...
 - Secrets MUST NOT be hardcoded in source code
 - Secrets MUST NOT be committed to version control
 - Secrets MUST be rotated periodically (TODO: define rotation schedule)
@@ -356,7 +367,6 @@ The following items require further definition before implementation:
 
 1. **UI Token TTL**: Define exact time-to-live for UI tokens (e.g., 15 minutes)
 2. **Refresh Token Policy**: Define refresh token storage, rotation, and expiry
-3. **Core Service Token Rotation**: Define rotation frequency (e.g., daily, weekly)
 4. **Rate Limits**: Define specific rate limits per endpoint category
 5. **Secret Management Tool**: Select tool based on deployment environment
 6. **Data Encryption Scope**: Define which Suite DB fields require encryption at rest

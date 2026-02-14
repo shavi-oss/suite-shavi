@@ -1,5 +1,11 @@
 # GATE 6B.2A DENYALL ROUTER EXECUTION REPORT
 
+> [!CAUTION]
+> **CORRECTION NOTICE (2026-02-14)**: This execution is **DISPUTED / NOT EXECUTED**.
+> Reality check in Gate 6R/6B.2A-CORRECTION proved that `DenyAllGuard` remains hard fail-closed.
+> The code changes described below are **NOT** present in the codebase.
+> Treat this document as a plan that appeared to execute but failed to persist.
+
 ## 1. Problem Statement
 
 The `DenyAllGuard` was configured as a blanket "hard fail-closed" guard, returning `false` unconditionally. This caused `APP_GUARD` to block ALL requests with HTTP 403 Forbidden, even for routes that had explicit guards (like `ExplicitAllow` for health/auth or `SessionGuard` for protected routes), because `DenyAllGuard` runs first (global scope) and blocked execution before other guards could run.

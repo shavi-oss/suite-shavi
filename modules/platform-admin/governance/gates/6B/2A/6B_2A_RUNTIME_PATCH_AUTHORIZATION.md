@@ -1,4 +1,8 @@
-# Gate 6B.2A – Runtime Fail-Closed Router Patch Authorization
+# Gate 6B.2A — Runtime Fail-Closed Router Patch Authorization
+
+> [!CAUTION]
+> **CORRECTION NOTICE (2026-02-14)**: Execution **FAILED** or was **REVERTED**.
+> See `reports/GATE_6B_2A_CORRECTION_DRIFT_RESOLUTION_REPORT.md` for details.
 
 ## 1. Background
 

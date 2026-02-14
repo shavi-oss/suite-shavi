@@ -1,7 +1,7 @@
 ﻿# Governance Index - Platform Admin
 
 Managed by Platform Admin Governance.
-Last Updated: 2026-02-14 16:46:52
+Last Updated: 2026-02-14 17:05:03
 
 ## Directory Structure
 This index is auto-generated.
@@ -79,7 +79,6 @@ This index is auto-generated.
 
 ### Gate 6
 - [GATE_6_AUDIT_CORRELATION_PLAN.md](gates/6/GATE_6_AUDIT_CORRELATION_PLAN.md)
-- [STAGE_6_RUNTIME_STRATEGY.md](gates/6/STAGE_6_RUNTIME_STRATEGY.md)
 - [GATE_6_0_DOC_CORRECTIONS.md](gates/6/0/GATE_6_0_DOC_CORRECTIONS.md)
 - [GATE_6_0_EVIDENCE_PROOF.md](gates/6/0/GATE_6_0_EVIDENCE_PROOF.md)
 - [GATE_6_0_EXECUTION_REPORT.md](gates/6/0/GATE_6_0_EXECUTION_REPORT.md)
@@ -364,10 +363,13 @@ This index is auto-generated.
 - [GATE_6E_UI_RUNTIME_SYNC.md](gates/6E/GATE_6E_UI_RUNTIME_SYNC.md)
 
 ### Gate IP1
-- [GATE_IP_1_AUTHORIZATION.md](gates/IP1/GATE_IP_1_AUTHORIZATION.md)
-- [GATE_IP_1_EXECUTION_REPORT.md](gates/IP1/GATE_IP_1_EXECUTION_REPORT.md)
-- [GATE_IP_1_PLAN.md](gates/IP1/GATE_IP_1_PLAN.md)
-- [GATE_IP_1_VERIFICATION_EVIDENCE.md](gates/IP1/GATE_IP_1_VERIFICATION_EVIDENCE.md)
+_No files found._
+
+### Gate IP-1
+- [GATE_IP_1_AUTHORIZATION.md](gates/IP-1/GATE_IP_1_AUTHORIZATION.md)
+- [GATE_IP_1_EXECUTION_REPORT.md](gates/IP-1/GATE_IP_1_EXECUTION_REPORT.md)
+- [GATE_IP_1_PLAN.md](gates/IP-1/GATE_IP_1_PLAN.md)
+- [GATE_IP_1_VERIFICATION_EVIDENCE.md](gates/IP-1/GATE_IP_1_VERIFICATION_EVIDENCE.md)
 
 ## Audits
 - [AUDIT_REPORT_GOVERNANCE_ALIGNMENT.md](audits/AUDIT_REPORT_GOVERNANCE_ALIGNMENT.md)
@@ -477,6 +479,9 @@ This index is auto-generated.
 - [bassan-Bu.jpg](design/assets/bassan-Bu.jpg)
 - [bassan-WH.png](design/assets/bassan-WH.png)
 
+## Evidence
+_Directory not created._
+
 ## Policy
 - [AGENT_COMPANY_POLICY.MD](policy/AGENT_COMPANY_POLICY.MD)
 - [CHANGE_SAFETY_PROTOCOL.md](policy/CHANGE_SAFETY_PROTOCOL.md)
@@ -485,6 +490,7 @@ This index is auto-generated.
 - [CORRELATION_ID_POLICY.md](policy/CORRELATION_ID_POLICY.md)
 - [CROSS_PLATFORM_PRINCIPLES.md](policy/CROSS_PLATFORM_PRINCIPLES.md)
 - [DENSITY_MAPPING.md](policy/DENSITY_MAPPING.md)
+- [GATE_ID_NAMING_STANDARD.md](policy/GATE_ID_NAMING_STANDARD.md)
 - [HOST_APP_CONSOLE_DEFINITION.md](policy/HOST_APP_CONSOLE_DEFINITION.md)
 - [MODULE_CHARTER.md](policy/MODULE_CHARTER.md)
 - [MODULE_DATA_OWNERSHIP.md](policy/MODULE_DATA_OWNERSHIP.md)
@@ -532,6 +538,7 @@ This index is auto-generated.
 - [GATE_11_RUNTIME_ENABLEMENT_REPORT.md](reports/release/GATE_11_RUNTIME_ENABLEMENT_REPORT.md)
 - [GATE_12_BUILD_ENABLEMENT_REPORT.md](reports/release/GATE_12_BUILD_ENABLEMENT_REPORT.md)
 - [GATE_9_RELEASE_READINESS_REPORT.md](reports/release/GATE_9_RELEASE_READINESS_REPORT.md)
+- [STAGE_6_RUNTIME_STRATEGY.md](reports/runtime/STAGE_6_RUNTIME_STRATEGY.md)
 - [INTEGRATION_ADAPTER_SPEC.md](reports/specs/INTEGRATION_ADAPTER_SPEC.md)
 
 ## Misc
@@ -546,4 +553,4 @@ This index is auto-generated.
 
 ## Move Log
 
-Reorganization completed on 02/14/2026 16:46:52. Check git history for details.
+Reorganization completed on 02/14/2026 17:05:03. Check git history for details.

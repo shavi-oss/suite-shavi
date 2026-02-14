@@ -31,7 +31,7 @@ This document contains the canonical ownership declaration for the Bassan platfo
 
 ### 1. Create NOTICE.md
 
-**Path:** `modules/platform-admin/governance/NOTICE.md`
+**Path:** `modules/platform-admin/governance/policy/NOTICE.md`
 
 **Content:**
 
@@ -66,8 +66,8 @@ See OWNERSHIP_AND_RIGHTS.md for full legal declaration.
 
 ### Allowed Modifications
 
-- `modules/platform-admin/governance/NOTICE.md` (create)
-- `modules/platform-admin/governance/GATE_IP_1_*.md` (create)
+- `modules/platform-admin/governance/policy/NOTICE.md` (create)
+- `modules/platform-admin/governance/gates/IP-1/GATE_IP_1_*.md` (create)
 - `README.md` (append only, if exists)
 
 ### Forbidden Modifications

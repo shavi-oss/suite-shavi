@@ -517,11 +517,11 @@ This strategy is derived from:
 
 - `ARCHITECTURAL_LAWS.md`
 - `SECURITY_BASELINE.md`
-- `modules/platform-admin/governance/PRODUCTION_READINESS_BASELINE_V2.md`
-- `modules/platform-admin/governance/ARCHITECTURAL_BASELINE_SNAPSHOT_V2.md`
-- `modules/platform-admin/governance/RELEASE_QUALIFICATION_MATRIX_V2.md`
-- `modules/platform-admin/governance/MODULE_SCOPE_LOCK.md`
-- `modules/platform-admin/governance/suite-constitution/SECURITY_STOP_CONDITIONS.md`
+- `modules/platform-admin/governance/baselines/PRODUCTION_READINESS_BASELINE_V2.md`
+- `modules/platform-admin/governance/baselines/ARCHITECTURAL_BASELINE_SNAPSHOT_V2.md`
+- `modules/platform-admin/governance/baselines/RELEASE_QUALIFICATION_MATRIX_V2.md`
+- `modules/platform-admin/governance/contracts/MODULE_SCOPE_LOCK.md`
+- `modules/platform-admin/governance/contracts/constitution/SECURITY_STOP_CONDITIONS.md`
 
 ---
 

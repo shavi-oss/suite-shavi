@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { OrgMappingController } from '../../../src/org-mapping/org-mapping.controller';
 import { OrgMappingService } from '../../../src/org-mapping/org-mapping.service';
+import { SessionGuard } from '../../../src/auth/session.guard';
+import { RbacGuard } from '../../../src/security/rbac.guard';
 
 describe('OrgMappingController', () => {
   let controller: OrgMappingController;
@@ -19,14 +21,19 @@ describe('OrgMappingController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(SessionGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(RbacGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = module.get<OrgMappingController>(OrgMappingController);
     service = module.get<OrgMappingService>(OrgMappingService);
   });
 
   describe('create', () => {
-    it('should create org mapping with JWT from Authorization header', async () => {
+    it('should create org mapping with coreJwt from request context (req.coreJwt)', async () => {
       const dto = { suiteOrgId: 'suite-1', coreOrgId: 'core-1' };
       const mockMapping = {
         suiteOrgId: 'suite-1',
@@ -39,8 +46,8 @@ describe('OrgMappingController', () => {
       const req = {
         headers: {
           'x-correlation-id': 'corr-1',
-          'authorization': 'Bearer jwt-token-123',
         },
+        coreJwt: 'jwt-token-123',
         user: { id: 'user-1' },
       };
 
@@ -63,9 +70,8 @@ describe('OrgMappingController', () => {
       };
 
       const req = {
-        headers: {
-          'authorization': 'Bearer jwt-token-123',
-        },
+        headers: {},
+        coreJwt: 'jwt-token-123',
         user: { id: 'user-1' },
       };
 
@@ -84,6 +90,7 @@ describe('OrgMappingController', () => {
       const dto = { suiteOrgId: 'suite-1', coreOrgId: 'core-1' };
       const req = {
         headers: {},
+        // coreJwt intentionally missing
         user: { id: 'user-1' },
       };
 

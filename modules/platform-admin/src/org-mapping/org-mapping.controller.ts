@@ -14,6 +14,7 @@ import {
 } from './dto/org-mapping.dto';
 import { RbacGuard, RequirePermission } from '../security/rbac.guard';
 import { Resource, Action } from '../security/permissions.map';
+import { SessionGuard } from '../auth/session.guard';
 import { randomUUID } from 'crypto';
 
 /**
@@ -31,7 +32,7 @@ import { randomUUID } from 'crypto';
  */
 
 @Controller('api/platform-admin/org-mappings')
-@UseGuards(RbacGuard)
+@UseGuards(SessionGuard, RbacGuard)
 export class OrgMappingController {
   constructor(private readonly orgMappingService: OrgMappingService) {}
 
@@ -47,7 +48,7 @@ export class OrgMappingController {
   ): Promise<OrgMappingResponseDto> {
     const correlationId = req.headers['x-correlation-id'] || randomUUID();
     const userId = req.user.id;
-    const coreJwt = req.headers['authorization']?.replace('Bearer ', '');
+    const coreJwt = req.coreJwt;
 
     if (!coreJwt) {
       throw new Error('Core JWT is required for org mapping validation');

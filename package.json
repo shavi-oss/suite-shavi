@@ -10,7 +10,7 @@
     "test:platform-admin:integration": "npx jest -c jest.config.cjs modules/platform-admin/tests/integration",
     "verify:platform-admin": "npm run build:platform-admin && npm run test:platform-admin",
     "test": "npm run test:platform-admin",
-    "start": "npx prisma migrate deploy --schema=modules/platform-admin/prisma/schema.prisma && node dist/modules/platform-admin/host/main.js"
+    "start": "npx prisma migrate deploy --schema=modules/platform-admin/prisma/schema.prisma || echo 'WARN: migrate deploy failed — starting anyway'; node dist/modules/platform-admin/host/main.js"
   },
   "repository": {
     "type": "git",

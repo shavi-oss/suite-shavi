@@ -9,9 +9,14 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log'],
   });
 
-  // CORS for local dev (UI on port 3000)
+  // CORS: use CORS_ORIGIN env var (comma-separated) for production;
+  // falls back to localhost:3000 for local dev.
+  // Evidence: SUITE_DEPLOY_PLAN.md T-1 (2026-02-24)
+  const corsOrigins = process.env.CORS_ORIGIN
+    ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
+    : ['http://localhost:3000'];
   app.enableCors({
-    origin: ['http://localhost:3000'],
+    origin: corsOrigins,
     credentials: true,
   });
 

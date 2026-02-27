@@ -11,5 +11,10 @@
     "emitDecoratorMetadata": true,
     "outDir": "dist",
     "noEmit": false
-  }
+  },
+  "exclude": [
+    "modules/platform-admin/client",
+    "node_modules",
+    "dist"
+  ]
 }

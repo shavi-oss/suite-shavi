@@ -75,10 +75,16 @@ describe('Core Contract Assertion — Endpoint Allowlist', () => {
   });
 
   describe('getAllowedCoreEndpoints', () => {
-    it('should return only 1 allowed endpoint', () => {
+    it('should return exactly 5 allowed endpoints (Phase C1/C2 additions included)', () => {
       const allowed = getAllowedCoreEndpoints();
-      expect(allowed).toHaveLength(1);
+      expect(allowed).toHaveLength(5);
+      // Original Core v1 contract
       expect(allowed).toContain('GET /api/v1/organizations/:id');
+      // Phase C1 — lifecycle endpoints added (admin S2S only)
+      expect(allowed).toContain('POST /api/v2/admin/organizations');
+      expect(allowed).toContain('PATCH /api/v2/admin/organizations/:id/suspend');
+      expect(allowed).toContain('PATCH /api/v2/admin/organizations/:id/unsuspend');
+      expect(allowed).toContain('PATCH /api/v2/admin/organizations/:id/deactivate');
     });
   });
 });

@@ -15,8 +15,10 @@
  * Audit removed per Gate 3 scope.
  */
 
+import { join } from 'path';
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static';
 import { DenyAllGuard } from './guards';
 import { HealthController } from './controllers';
 import { PrismaModule } from './src/db/prisma.module';
@@ -38,7 +40,18 @@ import { SessionService } from './src/auth/session.service';
 import { JwtStorageService } from './src/auth/jwt-storage.service';
 
 @Module({
-  imports: [PrismaModule],
+  imports: [
+    PrismaModule,
+    // Serve the React SPA from the compiled client build output.
+    // At runtime, __dirname = dist/modules/platform-admin/host
+    // so 4 levels up lands at dist/, then into platform-admin/client.
+    // The excludeRegex ensures all /api/* routes remain unaffected.
+    // Evidence: PR-1 — Fix UI Serving Disconnect (2026-02-27)
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', '..', '..', '..', 'dist', 'platform-admin', 'client'),
+      exclude: ['/api*'],
+    }),
+  ],
   controllers: [
     HealthController,
     InternalUserController,

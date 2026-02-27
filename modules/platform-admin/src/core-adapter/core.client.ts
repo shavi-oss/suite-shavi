@@ -168,4 +168,93 @@ export class CoreClient {
       throw new Error('Core API network error');
     }
   }
+
+  /**
+   * Create Core Organization
+   * 
+   * Endpoint: POST /api/v2/admin/organizations
+   * Purpose: Provision a new organization in Core
+   * 
+   * @param dto - Organization creation payload
+   * @param coreJwt - Validated Core JWT (forwarded as-is)
+   * @param correlationId - Correlation ID for tracing
+   * @returns Created Core Organization ID
+   */
+  async createOrganization(
+    dto: { name: string },
+    coreJwt: string,
+    correlationId: string,
+  ): Promise<string> {
+    // RUNTIME CONTRACT ASSERTION: Verify endpoint is in allowlist
+    assertCoreEndpointAllowed('POST', `/api/v2/admin/organizations`);
+
+    // FAIL-CLOSED: Stop immediately if auth contexts are missing
+    if (!coreJwt) {
+      throw new Error('STOP: coreJwt is required to create a Core organization');
+    }
+
+    if (!correlationId || correlationId.trim() === '') {
+      throw new Error('STOP: Correlation ID is required for Core API calls');
+    }
+
+    const url = `${this.coreBaseUrl}/api/v2/admin/organizations`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${coreJwt}`,
+          'X-Correlation-Id': correlationId,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(dto),
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        this.logger.log({
+          message: 'Core org creation succeeded',
+          correlationId,
+          coreOrgId: data.id,
+          statusCode: response.status,
+        });
+        return data.id as string;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        this.logger.error({
+          message: 'Core auth failure during creation',
+          correlationId,
+          statusCode: response.status,
+        });
+        throw new Error('Core authentication failed');
+      }
+
+      this.logger.error({
+        message: 'Core API unexpected error during creation',
+        correlationId,
+        statusCode: response.status,
+      });
+      throw new Error(`Core API error: ${response.status}`);
+
+    } catch (error) {
+      if (error instanceof Error && (
+        error.message.includes('Core authentication failed') ||
+        error.message.includes('Core API error') ||
+        error.message.includes('STOP:')
+      )) {
+        throw error;
+      }
+
+      const safeError = redactSensitiveData(error);
+
+      this.logger.error({
+        message: 'Core API network error during creation',
+        correlationId,
+        errorCode: safeError.errorCode,
+      });
+      throw new Error('Core API network error');
+    }
+  }
 }

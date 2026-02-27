@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { OrganizationRepository } from './organization.repository';
+import { OrgMappingRepository } from '../org-mapping/org-mapping.repository';
+import { CoreClient } from '../core-adapter/core.client';
 import { AuditService } from '../audit/audit.service';
 import { EntityType, ActionType, ResultType } from '@prisma/client';
 import { CreateOrganizationDto, OrganizationResponseDto } from './dto/organization.dto';
@@ -15,22 +17,38 @@ import { CreateOrganizationDto, OrganizationResponseDto } from './dto/organizati
 export class OrganizationService {
   constructor(
     private readonly orgRepository: OrganizationRepository,
+    private readonly mappingRepository: OrgMappingRepository,
+    private readonly coreClient: CoreClient,
     private readonly auditService: AuditService,
   ) {}
 
   async create(
     dto: CreateOrganizationDto,
     userId: string,
+    coreJwt: string,
     correlationId: string,
   ): Promise<OrganizationResponseDto> {
     try {
-      // Use transaction for atomic audit + DB write
+      // 1. Create Core Org first (external boundary)
+      const coreOrgId = await this.coreClient.createOrganization({ name: dto.name }, coreJwt, correlationId);
+
+      // 2. Open DB transaction for atomic Suite State + Mapping + Audit logging
       const org = await this.orgRepository['prisma'].$transaction(async (tx: any) => {
+        // a. Create Suite Organization
         const newOrg = await tx.suiteOrganization.create({
           data: { name: dto.name, createdBy: userId, status: 'active' },
         });
 
-        // Audit log (fail-closed) - NO PII in metadata
+        // b. Create Suite Org Mapping
+        await tx.suiteOrgMapping.create({
+          data: {
+            suiteOrgId: newOrg.id,
+            coreOrgId: coreOrgId,
+            createdBy: userId,
+          },
+        });
+
+        // c. Audit log (fail-closed) - NO PII in metadata
         await this.auditService.logAction({
           correlationId,
           entityType: EntityType.organization,
@@ -45,6 +63,9 @@ export class OrganizationService {
 
       return this.mapToResponse(org);
     } catch (error) {
+      if (error instanceof Error && error.message.includes('STOP:')) {
+        throw error;
+      }
       throw new Error('ORGANIZATION_CREATE_FAILED');
     }
   }

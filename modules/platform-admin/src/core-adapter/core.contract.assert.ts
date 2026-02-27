@@ -4,12 +4,13 @@
  * Purpose: Runtime assertion that we only call authorized Core endpoints
  * Evidence: CORE_V1_INTEGRATION_LOCK.md Section 8.1
  * 
- * ALLOWED: GET /api/v1/organizations/:id
+ * ALLOWED: GET /api/v1/organizations/:id, POST /api/v2/admin/organizations
  * FORBIDDEN: All other Core endpoints
  */
 
 const ALLOWED_CORE_ENDPOINTS = [
   'GET /api/v1/organizations/:id',
+  'POST /api/v2/admin/organizations',
 ] as const;
 
 export type AllowedCoreEndpoint = typeof ALLOWED_CORE_ENDPOINTS[number];

@@ -11,6 +11,7 @@ import {
 import { OrganizationService } from './organization.service';
 import { CreateOrganizationDto, OrganizationResponseDto } from './dto/organization.dto';
 import { RbacGuard, RequirePermission } from '../security/rbac.guard';
+import { SessionGuard } from '../auth/session.guard';
 import { Resource, Action } from '../security/permissions.map';
 import { randomUUID } from 'crypto';
 
@@ -26,7 +27,7 @@ import { randomUUID } from 'crypto';
  */
 
 @Controller('api/platform-admin/organizations')
-@UseGuards(RbacGuard)
+@UseGuards(SessionGuard, RbacGuard)
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
 
@@ -42,8 +43,13 @@ export class OrganizationController {
   ): Promise<OrganizationResponseDto> {
     const correlationId = req.headers['x-correlation-id'] || randomUUID();
     const userId = req.user.id;
+    const coreJwt = req.coreJwt;
 
-    return this.organizationService.create(dto, userId, correlationId);
+    if (!coreJwt) {
+      throw new Error('STOP: coreJwt missing or not injected by trusted SessionGuard');
+    }
+
+    return this.organizationService.create(dto, userId, coreJwt, correlationId);
   }
 
   /**

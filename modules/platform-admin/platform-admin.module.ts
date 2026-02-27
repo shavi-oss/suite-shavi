@@ -49,7 +49,12 @@ import { JwtStorageService } from './src/auth/jwt-storage.service';
     // Evidence: PR-1 — Fix UI Serving Disconnect (2026-02-27)
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', '..', '..', '..', 'dist', 'platform-admin', 'client'),
-      exclude: ['/api*'],
+      // Serve index.html ONLY for paths that do NOT start with /api
+      // Using renderPath regex: prevents SPA fallback from intercepting API routes.
+      // Evidence: @nestjs/serve-static@5 + Express — exclude[] strings don't prevent
+      // SPA fallback; renderPath regex is the documented workaround.
+      // PR-1 — Fix UI Serving Disconnect (2026-02-27)
+      renderPath: /^(?!\/api).*/,
     }),
   ],
   controllers: [

@@ -88,14 +88,23 @@ export class OrganizationService {
   async suspend(
     id: string,
     userId: string,
+    coreJwt: string,
     correlationId: string,
   ): Promise<OrganizationResponseDto> {
     const org = await this.orgRepository.findById(id);
-    
     if (!org) {
       throw new NotFoundException(`Organization ${id} not found`);
     }
 
+    // 1. Propagate to Core FIRST (fail-closed)
+    const mapping = await this.orgRepository['prisma'].suiteOrgMapping.findUnique({
+      where: { suiteOrgId: id },
+    });
+    if (mapping?.coreOrgId) {
+      await this.coreClient.suspendOrganization(mapping.coreOrgId, coreJwt, correlationId);
+    }
+
+    // 2. Update Suite DB + audit atomically
     try {
       const updated = await this.orgRepository['prisma'].$transaction(async (tx: any) => {
         const updatedOrg = await tx.suiteOrganization.update({
@@ -117,6 +126,7 @@ export class OrganizationService {
 
       return this.mapToResponse(updated);
     } catch (error) {
+      if (error instanceof Error && error.message.includes('STOP:')) throw error;
       throw new Error('ORGANIZATION_SUSPEND_FAILED');
     }
   }
@@ -124,14 +134,23 @@ export class OrganizationService {
   async unsuspend(
     id: string,
     userId: string,
+    coreJwt: string,
     correlationId: string,
   ): Promise<OrganizationResponseDto> {
     const org = await this.orgRepository.findById(id);
-    
     if (!org) {
       throw new NotFoundException(`Organization ${id} not found`);
     }
 
+    // 1. Propagate to Core FIRST (fail-closed)
+    const mapping = await this.orgRepository['prisma'].suiteOrgMapping.findUnique({
+      where: { suiteOrgId: id },
+    });
+    if (mapping?.coreOrgId) {
+      await this.coreClient.unsuspendOrganization(mapping.coreOrgId, coreJwt, correlationId);
+    }
+
+    // 2. Update Suite DB + audit atomically
     try {
       const updated = await this.orgRepository['prisma'].$transaction(async (tx: any) => {
         const updatedOrg = await tx.suiteOrganization.update({
@@ -153,7 +172,55 @@ export class OrganizationService {
 
       return this.mapToResponse(updated);
     } catch (error) {
+      if (error instanceof Error && error.message.includes('STOP:')) throw error;
       throw new Error('ORGANIZATION_UNSUSPEND_FAILED');
+    }
+  }
+
+  async deactivate(
+    id: string,
+    userId: string,
+    coreJwt: string,
+    correlationId: string,
+  ): Promise<OrganizationResponseDto> {
+    const org = await this.orgRepository.findById(id);
+    if (!org) {
+      throw new NotFoundException(`Organization ${id} not found`);
+    }
+
+    // 1. Propagate to Core FIRST (fail-closed)
+    const mapping = await this.orgRepository['prisma'].suiteOrgMapping.findUnique({
+      where: { suiteOrgId: id },
+    });
+    if (mapping?.coreOrgId) {
+      await this.coreClient.deactivateOrganization(mapping.coreOrgId, coreJwt, correlationId);
+    }
+
+    // 2. Update Suite DB + audit atomically
+    try {
+      const updated = await this.orgRepository['prisma'].$transaction(async (tx: any) => {
+        const updatedOrg = await tx.suiteOrganization.update({
+          where: { id },
+          data: { status: 'suspended' }, // terminal state
+        });
+
+        await this.auditService.logAction({
+          correlationId,
+          entityType: EntityType.organization,
+          entityId: id,
+          action: ActionType.suspend,
+          performedBy: userId,
+          result: ResultType.success,
+          metadata: { deactivated: true },
+        }, tx);
+
+        return updatedOrg;
+      });
+
+      return this.mapToResponse(updated);
+    } catch (error) {
+      if (error instanceof Error && error.message.includes('STOP:')) throw error;
+      throw new Error('ORGANIZATION_DEACTIVATE_FAILED');
     }
   }
 

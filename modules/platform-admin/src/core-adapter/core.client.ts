@@ -257,4 +257,79 @@ export class CoreClient {
       throw new Error('Core API network error');
     }
   }
+
+  private async patchLifecycle(
+    coreOrgId: string,
+    action: 'suspend' | 'unsuspend' | 'deactivate',
+    coreJwt: string,
+    correlationId: string,
+  ): Promise<void> {
+    const path = `/api/v2/admin/organizations/${coreOrgId}/${action}`;
+    assertCoreEndpointAllowed('PATCH', path);
+
+    if (!coreJwt) {
+      throw new Error(`STOP: coreJwt is required to ${action} a Core organization`);
+    }
+    if (!correlationId || correlationId.trim() === '') {
+      throw new Error('STOP: Correlation ID is required for Core API calls');
+    }
+
+    const url = `${this.coreBaseUrl}${path}`;
+
+    try {
+      const response = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'Authorization': `Bearer ${coreJwt}`,
+          'X-Correlation-Id': correlationId,
+          'Content-Type': 'application/json',
+        },
+        signal: AbortSignal.timeout(10000),
+      });
+
+      if (response.ok) {
+        this.logger.log({ message: `Core org ${action} succeeded`, correlationId, coreOrgId });
+        return;
+      }
+
+      if (response.status === 401 || response.status === 403) {
+        this.logger.error({ message: `Core auth failure during ${action}`, correlationId, statusCode: response.status });
+        throw new Error('Core authentication failed');
+      }
+
+      if (response.status === 404) {
+        this.logger.error({ message: `Core org not found during ${action}`, correlationId, coreOrgId });
+        throw new Error(`Core organization ${coreOrgId} not found`);
+      }
+
+      this.logger.error({ message: `Core API error during ${action}`, correlationId, statusCode: response.status });
+      throw new Error(`Core API error: ${response.status}`);
+
+    } catch (error) {
+      if (error instanceof Error && (
+        error.message.includes('Core authentication failed') ||
+        error.message.includes('Core API error') ||
+        error.message.includes('Core organization') ||
+        error.message.includes('STOP:')
+      )) {
+        throw error;
+      }
+
+      const safeError = redactSensitiveData(error);
+      this.logger.error({ message: `Core API network error during ${action}`, correlationId, errorCode: safeError.errorCode });
+      throw new Error('Core API network error');
+    }
+  }
+
+  async suspendOrganization(coreOrgId: string, coreJwt: string, correlationId: string): Promise<void> {
+    return this.patchLifecycle(coreOrgId, 'suspend', coreJwt, correlationId);
+  }
+
+  async unsuspendOrganization(coreOrgId: string, coreJwt: string, correlationId: string): Promise<void> {
+    return this.patchLifecycle(coreOrgId, 'unsuspend', coreJwt, correlationId);
+  }
+
+  async deactivateOrganization(coreOrgId: string, coreJwt: string, correlationId: string): Promise<void> {
+    return this.patchLifecycle(coreOrgId, 'deactivate', coreJwt, correlationId);
+  }
 }

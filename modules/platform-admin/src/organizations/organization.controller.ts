@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Patch,
+  Delete,
   Param,
   Body,
   UseGuards,
@@ -84,8 +85,9 @@ export class OrganizationController {
   ): Promise<OrganizationResponseDto> {
     const correlationId = req.headers['x-correlation-id'] || randomUUID();
     const userId = req.user.id;
-
-    return this.organizationService.suspend(id, userId, correlationId);
+    const coreJwt = req.coreJwt;
+    if (!coreJwt) throw new Error('STOP: coreJwt missing or not injected by trusted SessionGuard');
+    return this.organizationService.suspend(id, userId, coreJwt, correlationId);
   }
 
   /**
@@ -100,7 +102,25 @@ export class OrganizationController {
   ): Promise<OrganizationResponseDto> {
     const correlationId = req.headers['x-correlation-id'] || randomUUID();
     const userId = req.user.id;
+    const coreJwt = req.coreJwt;
+    if (!coreJwt) throw new Error('STOP: coreJwt missing or not injected by trusted SessionGuard');
+    return this.organizationService.unsuspend(id, userId, coreJwt, correlationId);
+  }
 
-    return this.organizationService.unsuspend(id, userId, correlationId);
+  /**
+   * DELETE /api/platform-admin/organizations/:id
+   * Deactivate (soft-delete) organization — propagates to Core first
+   */
+  @Delete(':id')
+  @RequirePermission(Resource.ORGANIZATIONS, Action.WRITE)
+  async deactivate(
+    @Param('id') id: string,
+    @Req() req: any,
+  ): Promise<OrganizationResponseDto> {
+    const correlationId = req.headers['x-correlation-id'] || randomUUID();
+    const userId = req.user.id;
+    const coreJwt = req.coreJwt;
+    if (!coreJwt) throw new Error('STOP: coreJwt missing or not injected by trusted SessionGuard');
+    return this.organizationService.deactivate(id, userId, coreJwt, correlationId);
   }
 }

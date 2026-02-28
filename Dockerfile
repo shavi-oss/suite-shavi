@@ -44,6 +44,7 @@ RUN cd modules/platform-admin/client && npx vite build
 EXPOSE 4000
 
 # Entrypoint:
-#  1) prisma migrate deploy (idempotent — safe to run on every start)
+#  1) prisma migrate deploy — non-fatal (|| true) so node starts even if DB is temporarily unreachable
+#     or migrations are already applied. Errors are logged but don't block the server.
 #  2) Start BFF
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=modules/platform-admin/prisma/schema.prisma && node dist/modules/platform-admin/host/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=modules/platform-admin/prisma/schema.prisma || true && node dist/modules/platform-admin/host/main.js"]

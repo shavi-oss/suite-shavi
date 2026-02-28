@@ -47,7 +47,10 @@ async function bootstrap() {
   app.enableShutdownHooks();
 
   const port = process.env.PORT || 4000;
-  await app.listen(port);
+  // Explicitly bind to 0.0.0.0 for Railway container compatibility.
+  // Without this, Node may default to 127.0.0.1 making the container unreachable.
+  // Evidence: forensic-audit-2026-02-28 F1 fix
+  await app.listen(port, '0.0.0.0');
   
   logger.log(`Platform Admin Host listening on http://localhost:${port}`);
 }

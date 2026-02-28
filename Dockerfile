@@ -26,8 +26,14 @@ COPY . .
 RUN npx prisma generate --schema=modules/platform-admin/prisma/schema.prisma
 
 # ── BFF TypeScript compile ───────────────────────────────────────────────────
-# tsconfig.bff.json → outDir: dist/modules/platform-admin
+# tsconfig.bff.json → outDir: dist/modules/platform-admin (excludes client)
 RUN npx tsc -p modules/platform-admin/tsconfig.bff.json
+
+# ── React SPA client build (Vite) ────────────────────────────────────────────
+# outDir: dist/platform-admin/client (per vite.config.ts)
+# This produces the index.html served by express.static in main.ts
+# Evidence: forensic-audit-2026-02-28 F2 fix
+RUN npx vite build --config modules/platform-admin/client/vite.config.ts
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
 # Same image (no separate runtime stage to keep size manageable)

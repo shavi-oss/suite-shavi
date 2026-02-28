@@ -11,11 +11,13 @@ async function bootstrap() {
     logger: ['error', 'warn', 'log'],
   });
 
-  // CORS: use CORS_ORIGIN env var (comma-separated) for production;
-  // falls back to localhost:3000 for local dev.
-  // Evidence: SUITE_DEPLOY_PLAN.md T-1 (2026-02-24)
-  const corsOrigins = process.env.CORS_ORIGIN
-    ? process.env.CORS_ORIGIN.split(',').map(s => s.trim()).filter(Boolean)
+  // CORS: Railway env var is CORS_ALLOWED_ORIGINS (comma-separated).
+  // Fallback to CORS_ORIGIN for backward compat, then localhost for dev.
+  // Evidence: forensic-audit-2026-02-28-v2 Phase 2 — confirmed via railway variables dump.
+  // CRITICAL FIX: Previous code read CORS_ORIGIN but Railway has CORS_ALLOWED_ORIGINS.
+  const corsRaw = process.env.CORS_ALLOWED_ORIGINS || process.env.CORS_ORIGIN;
+  const corsOrigins = corsRaw
+    ? corsRaw.split(',').map(s => s.trim()).filter(Boolean)
     : ['http://localhost:3000'];
   app.enableCors({
     origin: corsOrigins,

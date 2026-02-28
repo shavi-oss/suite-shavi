@@ -24,6 +24,18 @@ async function bootstrap() {
     credentials: true,
   });
 
+  // Health endpoint: raw Express middleware BEFORE NestJS routing.
+  // DenyAllGuard is APP_GUARD (NestJS layer) — it fires before any route-level guard,
+  // so ExplicitAllowGuard on HealthController never gets a chance. Returning 200 JSON
+  // here at the Express layer bypasses all NestJS guards for this specific path only.
+  // Railway healthcheck path: /api/platform-admin/health (see railway.json).
+  // NOTE: controllers already hardcode 'api/platform-admin/...' in @Controller()
+  //       so NO setGlobalPrefix is needed — it would create double /api/api/ prefix.
+  // Evidence: forensic-audit-2026-02-28-v2 Phase 3 — DenyAllGuard bypass via Express.
+  app.use('/api/platform-admin/health', (req: express.Request, res: express.Response) => {
+    res.status(200).json({ status: 'ok', module: 'platform-admin' });
+  });
+
   // Static SPA serving — serve React build output for non-API routes only.
   // The middleware guard (req.path.startsWith('/api')) ensures all /api/*
   // requests bypass static serving and reach NestJS guards/controllers.

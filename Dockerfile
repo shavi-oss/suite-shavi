@@ -30,10 +30,12 @@ RUN npx prisma generate --schema=modules/platform-admin/prisma/schema.prisma
 RUN npx tsc -p modules/platform-admin/tsconfig.bff.json
 
 # ── React SPA client build (Vite) ────────────────────────────────────────────
-# outDir: dist/platform-admin/client (per vite.config.ts)
-# This produces the index.html served by express.static in main.ts
-# Evidence: forensic-audit-2026-02-28 F2 fix
-RUN npx vite build --config modules/platform-admin/client/vite.config.ts
+# Root cause of previous failure: `vite build --config path` sets Vite root=CWD (/app),
+# so Vite looks for /app/index.html (not found → "Could not resolve entry module").
+# Fix: cd into client dir first so Vite root=/app/modules/platform-admin/client.
+# outDir '../../../dist/platform-admin/client' (relative to Vite root) → /app/dist/platform-admin/client ✅
+# Evidence: forensic-audit-2026-02-28-v2 Phase 3 vite root fix
+RUN cd modules/platform-admin/client && npx vite build
 
 # ── Runtime stage ────────────────────────────────────────────────────────────
 # Same image (no separate runtime stage to keep size manageable)

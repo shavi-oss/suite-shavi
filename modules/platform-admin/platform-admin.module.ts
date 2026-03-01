@@ -36,7 +36,7 @@ import { OrganizationService } from './src/organizations/organization.service';
 import { AuditController } from './src/audit/audit.controller';
 import { AuthController } from './src/auth/auth.controller';
 import { SessionService } from './src/auth/session.service';
-import { JwtStorageService } from './src/auth/jwt-storage.service';
+import { SessionGuard } from './src/auth/session.guard';
 
 @Module({
   imports: [
@@ -65,7 +65,7 @@ import { JwtStorageService } from './src/auth/jwt-storage.service';
     AuditService,
     AuditRepository,
     SessionService,
-    JwtStorageService,
+    SessionGuard,
   ],
 })
 export class PlatformAdminModule {}

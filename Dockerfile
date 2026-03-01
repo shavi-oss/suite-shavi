@@ -1,7 +1,7 @@
 # Suite-Shavi BFF — Portable Dockerfile
 # T-2: 2026-02-24 — SUITE_DEPLOY_PLAN.md
 # Architecture: node:20-alpine, npm ci, prisma generate, BFF tsc build
-# Runtime: prisma migrate deploy (non-interactive) → node dist/...
+# Runtime: node dist/... only. Schema provisioned once by operator (see docs/runbook/DB_PROVISIONING.md).
 # NEVER bake env values into the image. All config via env vars.
 
 FROM node:20-alpine AS base
@@ -44,7 +44,6 @@ RUN cd modules/platform-admin/client && npx vite build
 EXPOSE 4000
 
 # Entrypoint:
-#  1) prisma db push — create/sync tables from schema.prisma (no migration files needed).
-#     --accept-data-loss allows schema drift if schema changed. Non-fatal (|| true).
-#  2) Start BFF
-CMD ["sh", "-c", "npx prisma db push --schema=modules/platform-admin/prisma/schema.prisma --accept-data-loss || true && node dist/modules/platform-admin/host/main.js"]
+# Schema is provisioned once by the operator before first deploy — see docs/runbook/DB_PROVISIONING.md.
+# No DB migration runs at container startup (fail-closed: if DB is unavailable the app reports 5xx on DB routes).
+CMD ["node", "dist/modules/platform-admin/host/main.js"]

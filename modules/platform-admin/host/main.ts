@@ -3,6 +3,8 @@ import { Logger } from '@nestjs/common';
 import { AppModule } from './app.module';
 import { join } from 'path';
 import * as express from 'express';
+// eslint-disable-next-line @typescript-eslint/no-require-imports
+const cookieParser = require('cookie-parser');
 
 async function bootstrap() {
   const logger = new Logger('PlatformAdminHost');
@@ -23,6 +25,12 @@ async function bootstrap() {
     origin: corsOrigins,
     credentials: true,
   });
+
+  // Cookie parsing: required so req.cookies.sessionId is populated.
+  // Without this, SessionGuard always sees undefined and returns 401.
+  // cookie-parser is already declared in package.json v1.4.7.
+  // Evidence: forensic-ui-login Phase 2 — root cause: missing cookieParser().
+  app.use(cookieParser());
 
   // Health endpoint: raw Express middleware BEFORE NestJS routing.
   // DenyAllGuard is APP_GUARD (NestJS layer) — it fires before any route-level guard,

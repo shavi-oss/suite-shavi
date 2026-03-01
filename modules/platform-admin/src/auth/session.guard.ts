@@ -30,6 +30,16 @@ export class SessionGuard implements CanActivate {
     // Attach userId to request for downstream use
     (request as any).userId = userId;
 
+    // Attach user object so RbacGuard can check role + status.
+    // Role is fixed to platform_admin until real user DB lookup is integrated
+    // (future gate: look up InternalUser by userId, read their stored role).
+    // Evidence: forensic-core-jwt Phase 2 — RbacGuard req.user fix.
+    (request as any).user = {
+      id: userId,
+      role: 'platform_admin',   // temporary: grants full READ access
+      status: 'active',
+    };
+
     // Retrieve Core JWT from server-side storage
     const coreJwt = this.jwtStorageService.get(userId);
 

@@ -1,5 +1,6 @@
 import { Controller, Post, Get, Body, Res, Req, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { SessionService } from './session.service';
+import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { SessionResponseDto } from './dto/session-response.dto';
 import { ExplicitAllow } from '../../guards/explicit-allow.guard';
@@ -12,21 +13,28 @@ type Response = any;
 export class AuthController {
   constructor(
     private readonly sessionService: SessionService,
+    private readonly authService: AuthService,
   ) {}
 
   @Post('login')
   @ExplicitAllow()
   @HttpCode(HttpStatus.OK)
-  login(
+  async login(
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
-  ): { message: string } {
-    // TODO Gate 4: validate credentials against InternalUser password hash/SSO.
-    // For now, accept any email/password — session is still guarded by SessionGuard
-    // which requires the userId (email) to match an active InternalUser in DB.
-    const userId = loginDto.email; // userId stored as email; SessionGuard does DB lookup.
+  ): Promise<{ message: string }> {
+    // Gate 4: validate credentials before session creation.
+    // validateCredentials returns the operator's DB id (UUID) on success,
+    // or throws 401 UnauthorizedException on any failure.
+    // Fail-closed: wrong email, wrong password, missing env, deactivated → all 401.
+    const operatorId = await this.authService.validateCredentials(
+      loginDto.email,
+      loginDto.password,
+    );
 
-    const sessionId = this.sessionService.createSession(userId);
+    // Only create session after verified credentials.
+    // Session stores operatorId (UUID) — SessionGuard will look up by id from now.
+    const sessionId = this.sessionService.createSession(operatorId);
 
     // Set httpOnly cookie per GATE_48_DEV_AUTH_FLOW_LOCK.md Section 3.1
     response.cookie('sessionId', sessionId, {
@@ -53,7 +61,6 @@ export class AuthController {
       this.sessionService.clearSession(sessionId);
     }
 
-    // Clear cookie by setting expired date
     response.cookie('sessionId', '', {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',

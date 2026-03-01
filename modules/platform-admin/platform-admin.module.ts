@@ -37,6 +37,7 @@ import { AuditController } from './src/audit/audit.controller';
 import { AuthController } from './src/auth/auth.controller';
 import { SessionService } from './src/auth/session.service';
 import { SessionGuard } from './src/auth/session.guard';
+import { AuthService } from './src/auth/auth.service';
 
 @Module({
   imports: [
@@ -66,6 +67,7 @@ import { SessionGuard } from './src/auth/session.guard';
     AuditRepository,
     SessionService,
     SessionGuard,
+    AuthService,
   ],
 })
 export class PlatformAdminModule {}

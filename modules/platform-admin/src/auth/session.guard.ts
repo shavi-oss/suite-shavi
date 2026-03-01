@@ -28,10 +28,10 @@ export class SessionGuard implements CanActivate {
       throw new UnauthorizedException('Unauthorized access. Please contact your administrator.');
     }
 
-    // Fail-closed: derive operator identity from DB (userId is stored as email at login).
-    // If no matching InternalUser record exists → 401 (not a registered operator).
-    // Gate 2 Evidence: replaces hardcoded platform_admin role with real DB lookup.
-    const operator = await this.internalUserRepository.findByEmail(userId);
+    // Gate 4: session now stores operator UUID (since auth.controller validates creds and
+    // stores operatorId returned by AuthService). Look up by UUID (findById).
+    // Gate 2 Evidence: replaces hardcoded platform_admin with real DB-derived role.
+    const operator = await this.internalUserRepository.findById(userId);
     if (!operator) {
       throw new UnauthorizedException('Unauthorized access. Please contact your administrator.');
     }

@@ -1,6 +1,5 @@
-import { Controller, Post, Get, Body, Res, Req, HttpCode, HttpStatus, UnauthorizedException, UseGuards } from '@nestjs/common';
+import { Controller, Post, Get, Body, Res, Req, HttpCode, HttpStatus, UnauthorizedException } from '@nestjs/common';
 import { SessionService } from './session.service';
-import { JwtStorageService } from './jwt-storage.service';
 import { LoginDto } from './dto/login.dto';
 import { SessionResponseDto } from './dto/session-response.dto';
 import { ExplicitAllow } from '../../guards/explicit-allow.guard';
@@ -13,7 +12,6 @@ type Response = any;
 export class AuthController {
   constructor(
     private readonly sessionService: SessionService,
-    private readonly jwtStorageService: JwtStorageService,
   ) {}
 
   @Post('login')
@@ -23,17 +21,12 @@ export class AuthController {
     @Body() loginDto: LoginDto,
     @Res({ passthrough: true }) response: Response,
   ): { message: string } {
-    // TODO: Actual authentication logic (future gate)
-    // For now, accept any credentials and create session
-    const userId = loginDto.email; // Placeholder: use email as userId
+    // TODO Gate 4: validate credentials against InternalUser password hash/SSO.
+    // For now, accept any email/password — session is still guarded by SessionGuard
+    // which requires the userId (email) to match an active InternalUser in DB.
+    const userId = loginDto.email; // userId stored as email; SessionGuard does DB lookup.
 
     const sessionId = this.sessionService.createSession(userId);
-
-    // Store sentinel coreJwt so SessionGuard's coreJwt check passes.
-    // Read-only endpoints do not forward coreJwt to Core API (only write ops do).
-    // A real Core JWT will be added in a future gate when Core auth is integrated.
-    // Evidence: forensic-core-jwt Phase 2 — sentinel to unblock read-only screens.
-    this.jwtStorageService.set(userId, `platform-admin-session:${userId}`);
 
     // Set httpOnly cookie per GATE_48_DEV_AUTH_FLOW_LOCK.md Section 3.1
     response.cookie('sessionId', sessionId, {
@@ -57,10 +50,7 @@ export class AuthController {
     const sessionId = request.cookies?.sessionId;
 
     if (sessionId) {
-      const userId = this.sessionService.validateSession(sessionId);
       this.sessionService.clearSession(sessionId);
-      // Clear sentinel coreJwt on logout.
-      if (userId) this.jwtStorageService.clear(userId);
     }
 
     // Clear cookie by setting expired date
@@ -92,7 +82,7 @@ export class AuthController {
 
     return {
       userId,
-      expiresAt: Date.now() + 900000, // Approximate, actual expiry tracked in service
+      expiresAt: Date.now() + 900000,
     };
   }
 }

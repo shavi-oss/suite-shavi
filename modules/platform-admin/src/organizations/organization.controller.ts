@@ -13,7 +13,7 @@ import { OrganizationService } from './organization.service';
 import { CreateOrganizationDto, OrganizationResponseDto } from './dto/organization.dto';
 import { RbacGuard, RequirePermission } from '../security/rbac.guard';
 import { SessionGuard } from '../auth/session.guard';
-import { ExplicitAllowGuard } from '../../guards/explicit-allow.guard';
+import { ExplicitAllow } from '../../guards/explicit-allow.guard';
 import { Resource, Action } from '../security/permissions.map';
 import { randomUUID } from 'crypto';
 
@@ -29,10 +29,11 @@ import { randomUUID } from 'crypto';
  */
 
 @Controller('api/platform-admin/organizations')
-// ExplicitAllowGuard: opt-in override of DenyAllGuard (APP_GUARD).
-// Without this, DenyAllGuard fires first and blocks SessionGuard/RbacGuard.
-// Evidence: forensic-gate Phase 2 — gate to enable data routes.
-@UseGuards(ExplicitAllowGuard, SessionGuard, RbacGuard)
+// @ExplicitAllow(): sets IS_EXPLICIT_ALLOW metadata — DenyAllGuard (APP_GUARD) reads this and passes.
+// SessionGuard + RbacGuard then enforce actual auth/authorization.
+// Evidence: forensic-auth-session Phase 2 — reflector pattern fix.
+@ExplicitAllow()
+@UseGuards(SessionGuard, RbacGuard)
 export class OrganizationController {
   constructor(private readonly organizationService: OrganizationService) {}
 

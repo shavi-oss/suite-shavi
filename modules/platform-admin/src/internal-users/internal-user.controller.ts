@@ -12,7 +12,7 @@ import { InternalUserService } from './internal-user.service';
 import { CreateInternalUserDto, InternalUserResponseDto } from './dto/create-internal-user.dto';
 import { RbacGuard, RequirePermission } from '../security/rbac.guard';
 import { SessionGuard } from '../auth/session.guard';
-import { ExplicitAllowGuard } from '../../guards/explicit-allow.guard';
+import { ExplicitAllow } from '../../guards/explicit-allow.guard';
 import { Resource, Action } from '../security/permissions.map';
 import { randomUUID } from 'crypto';
 
@@ -28,10 +28,9 @@ import { randomUUID } from 'crypto';
  */
 
 @Controller('api/platform-admin/internal-users')
-// ExplicitAllowGuard: opt-in override of DenyAllGuard (APP_GUARD).
-// SessionGuard: validates sessionId cookie (was missing — drift fix).
-// Evidence: forensic-gate Phase 2 — gate to enable data routes.
-@UseGuards(ExplicitAllowGuard, SessionGuard, RbacGuard)
+// @ExplicitAllow() + SessionGuard + RbacGuard — see forensic-auth-session for rationale.
+@ExplicitAllow()
+@UseGuards(SessionGuard, RbacGuard)
 export class InternalUserController {
   constructor(private readonly internalUserService: InternalUserService) {}
 

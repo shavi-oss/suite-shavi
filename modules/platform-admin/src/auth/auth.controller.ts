@@ -2,7 +2,7 @@ import { Controller, Post, Get, Body, Res, Req, HttpCode, HttpStatus, Unauthoriz
 import { SessionService } from './session.service';
 import { LoginDto } from './dto/login.dto';
 import { SessionResponseDto } from './dto/session-response.dto';
-import { ExplicitAllowGuard } from '../../guards/explicit-allow.guard';
+import { ExplicitAllow } from '../../guards/explicit-allow.guard';
 
 // Type imports for request/response
 type Request = any;
@@ -13,7 +13,7 @@ export class AuthController {
   constructor(private readonly sessionService: SessionService) {}
 
   @Post('login')
-  @UseGuards(ExplicitAllowGuard)
+  @ExplicitAllow()
   @HttpCode(HttpStatus.OK)
   login(
     @Body() loginDto: LoginDto,
@@ -38,7 +38,7 @@ export class AuthController {
   }
 
   @Post('logout')
-  @UseGuards(ExplicitAllowGuard)
+  @ExplicitAllow()
   @HttpCode(HttpStatus.OK)
   logout(
     @Req() request: Request,
@@ -63,7 +63,7 @@ export class AuthController {
   }
 
   @Get('session')
-  @UseGuards(ExplicitAllowGuard)
+  @ExplicitAllow()
   getSession(@Req() request: Request): SessionResponseDto {
     const sessionId = request.cookies?.sessionId;
 

@@ -8,7 +8,7 @@ import {
 import { AuditService } from './audit.service';
 import { RbacGuard, RequirePermission } from '../security/rbac.guard';
 import { SessionGuard } from '../auth/session.guard';
-import { ExplicitAllowGuard } from '../../guards/explicit-allow.guard';
+import { ExplicitAllow } from '../../guards/explicit-allow.guard';
 import { Resource, Action } from '../security/permissions.map';
 import { EntityType, ActionType } from '@prisma/client';
 
@@ -24,10 +24,9 @@ import { EntityType, ActionType } from '@prisma/client';
  */
 
 @Controller('api/platform-admin/audit-logs')
-// ExplicitAllowGuard: opt-in override of DenyAllGuard (APP_GUARD).
-// SessionGuard: validates sessionId cookie (was missing — drift fix).
-// Evidence: forensic-gate Phase 2 — gate to enable data routes.
-@UseGuards(ExplicitAllowGuard, SessionGuard, RbacGuard)
+// @ExplicitAllow() + SessionGuard + RbacGuard — see forensic-auth-session for rationale.
+@ExplicitAllow()
+@UseGuards(SessionGuard, RbacGuard)
 export class AuditController {
   constructor(private readonly auditService: AuditService) {}
 

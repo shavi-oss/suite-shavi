@@ -11,9 +11,13 @@ const scryptAsync = promisify(scrypt);
  *
  * Gate 4: enforce real credential verification at login.
  *
- * Password storage: env-var OPERATOR_CREDENTIALS (JSON map email→"salt:hash").
- * Hash algorithm: scrypt(password, salt, 64) → hex. N=16384, r=8, p=1 (Node defaults).
- * Compare: crypto.timingSafeEqual (constant-time; prevents timing attacks).
+ * Password storage: env-var OPERATOR_CREDENTIALS in pipe-delimited format:
+ *   email|salt:hash
+ *   e.g. admin@bassan.io|7cba58...:de8a30...
+ * Multiple operators: comma-separated entries.
+ *   e.g. alice@co.io|salt1:hash1,bob@co.io|salt2:hash2
+ *
+ * This avoids JSON quoting issues with Railway CLI.
  *
  * Fail-closed rules:
  *   - OPERATOR_CREDENTIALS not set   → 401 (no fallback, no default password)
@@ -43,23 +47,27 @@ export class AuthService {
    * @returns operator.id (UUID string) — to be stored as session userId
    */
   async validateCredentials(email: string, password: string): Promise<string> {
-    // Load credentials map from env — fail-closed if missing.
+    // Load credentials from env — fail-closed if missing.
+    // Format: email|salt:hash  (pipe separates email from hash entry).
+    // Multiple operators: comma-separated, e.g. alice@io|s:h,bob@io|s:h
     const credsRaw = process.env.OPERATOR_CREDENTIALS;
     if (!credsRaw) {
-      // STOP: env var not configured. Fail-closed — deny all logins.
       this.logger.warn('OPERATOR_CREDENTIALS env var not set — all logins denied');
       throw new UnauthorizedException('Unauthorized');
     }
 
-    let credsMap: Record<string, string>;
-    try {
-      credsMap = JSON.parse(credsRaw);
-    } catch {
-      this.logger.warn('OPERATOR_CREDENTIALS env var is not valid JSON — all logins denied');
-      throw new UnauthorizedException('Unauthorized');
+    // Parse: split by comma for multiple operators, then split by first pipe.
+    const credsMap: Record<string, string> = {};
+    for (const entry of credsRaw.split(',')) {
+      const pipeIdx = entry.indexOf('|');
+      if (pipeIdx > 0) {
+        const entryEmail = entry.substring(0, pipeIdx).trim();
+        const entryHash  = entry.substring(pipeIdx + 1).trim();
+        credsMap[entryEmail] = entryHash;
+      }
     }
 
-    // Constant-time presence check — always look up hash AND operator to avoid timing leaks.
+    // Constant-time: always look up both hash and operator before deciding.
     const storedEntry = credsMap[email] ?? null;
 
     // DB lookup — must exist and be active regardless of password match.

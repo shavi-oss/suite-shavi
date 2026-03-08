@@ -213,13 +213,15 @@ export class CoreClient {
 
       if (response.ok) {
         const data = await response.json();
+        // Core returns { organization: { id, ... }, ... } via AdminService → OrganizationsService
+        const coreOrgId: string = (data as any).organization?.id ?? (data as any).id;
         this.logger.log({
           message: 'Core org creation succeeded',
           correlationId,
-          coreOrgId: data.id,
+          coreOrgId,
           statusCode: response.status,
         });
-        return data.id as string;
+        return coreOrgId;
       }
 
       if (response.status === 401 || response.status === 403) {

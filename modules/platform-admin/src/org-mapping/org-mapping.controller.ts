@@ -6,6 +6,7 @@ import {
   Body,
   UseGuards,
   Req,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { OrgMappingService } from './org-mapping.service';
 import {
@@ -15,6 +16,7 @@ import {
 import { RbacGuard, RequirePermission } from '../security/rbac.guard';
 import { Resource, Action } from '../security/permissions.map';
 import { SessionGuard } from '../auth/session.guard';
+import { ExplicitAllow } from '../../guards/explicit-allow.guard';
 import { randomUUID } from 'crypto';
 
 /**
@@ -32,6 +34,7 @@ import { randomUUID } from 'crypto';
  */
 
 @Controller('api/platform-admin/org-mappings')
+@ExplicitAllow()
 @UseGuards(SessionGuard, RbacGuard)
 export class OrgMappingController {
   constructor(private readonly orgMappingService: OrgMappingService) {}
@@ -51,7 +54,7 @@ export class OrgMappingController {
     const coreJwt = req.coreJwt;
 
     if (!coreJwt) {
-      throw new Error('Core JWT is required for org mapping validation');
+      throw new UnauthorizedException('Core auth not configured. Contact your administrator.');
     }
 
     return this.orgMappingService.create(dto, userId, coreJwt, correlationId);

@@ -285,3 +285,55 @@ export async function getAuditLogs(filters?: AuditLogFilters): Promise<AuditLog[
 }
 
 export type { Organization, CreateOrganizationDto, InternalUser, CreateInternalUserDto, AuditLog, AuditLogFilters, ApiError }
+
+// ── Org Mapping ──────────────────────────────────────────────────────────────
+
+export interface OrgMapping {
+  suiteOrgId: string
+  coreOrgId: string
+  createdAt: string
+  updatedAt: string
+  createdBy: string
+}
+
+export interface CreateOrgMappingDto {
+  suiteOrgId: string
+  coreOrgId: string
+}
+
+export async function getOrgMappings(): Promise<OrgMapping[]> {
+  const response = await fetchWithCorrelation(`${API_BASE}/org-mappings`)
+  if (!response.ok) {
+    throw new Error('Failed to fetch org mappings')
+  }
+  return response.json()
+}
+
+export async function getOrgMapping(suiteOrgId: string): Promise<OrgMapping | null> {
+  const response = await fetchWithCorrelation(`${API_BASE}/org-mappings/${suiteOrgId}`)
+  if (response.status === 404) return null
+  if (!response.ok) {
+    throw new Error('Failed to fetch org mapping')
+  }
+  return response.json()
+}
+
+export async function createOrgMapping(dto: CreateOrgMappingDto): Promise<OrgMapping> {
+  const response = await fetchWithCorrelation(`${API_BASE}/org-mappings`, {
+    method: 'POST',
+    body: JSON.stringify(dto),
+  })
+  if (!response.ok) {
+    // Surface safe server message for 409 conflict or 404 not found
+    if (response.status === 409 || response.status === 404 || response.status === 400) {
+      try {
+        const body = await response.json()
+        throw new Error(body?.message || 'Failed to create org mapping')
+      } catch {
+        throw new Error('Failed to create org mapping')
+      }
+    }
+    throw new Error('Failed to create org mapping')
+  }
+  return response.json()
+}

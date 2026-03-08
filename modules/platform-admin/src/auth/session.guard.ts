@@ -36,7 +36,9 @@ type Request = any;
 
 /** Write routes that require a minted coreJwt */
 const WRITE_METHOD_PATTERN = /^(POST|PATCH|DELETE)$/i;
-const WRITE_PATH_PATTERN = /^\/api\/platform-admin\/organizations(\/|$)/i;
+/** Extend pattern to include /org-mappings (Gate 8: POST needs coreJwt for validateOrganizationExists) */
+const WRITE_PATH_PATTERN =
+  /^\/api\/platform-admin\/(organizations|org-mappings)(\/ |$)/i;
 
 function b64url(buf: Buffer): string {
   return buf.toString('base64url');

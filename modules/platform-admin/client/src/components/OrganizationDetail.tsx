@@ -3,6 +3,7 @@ import { getOrganization, suspendOrganization, unsuspendOrganization, deleteOrga
 import { normalizeError } from '../utils/errors'
 import { LoadingState } from './LoadingState'
 import { ErrorState } from './ErrorState'
+import { OrgMappingSection } from './OrgMappingSection'
 
 interface Props {
   organizationId: string
@@ -253,6 +254,9 @@ export function OrganizationDetail({ organizationId, onBack }: Props) {
         {isPending && (
           <p aria-live="polite" style={{ color: '#555' }}>Processing...</p>
         )}
+
+        {/* Core Org Mapping */}
+        <OrgMappingSection suiteOrgId={organizationId} />
       </div>
     </div>
   )

@@ -30,7 +30,13 @@ export class OrganizationService {
   ): Promise<OrganizationResponseDto> {
     try {
       // 1. Create Core Org first (external boundary)
-      const coreOrgId = await this.coreClient.createOrganization({ name: dto.name }, coreJwt, correlationId);
+      const coreOrgId = await this.coreClient.createOrganization({
+        name: dto.name,
+        adminEmail: dto.adminEmail,
+        adminPassword: dto.adminPassword,
+        adminFirstName: dto.adminFirstName,
+        adminLastName: dto.adminLastName,
+      }, coreJwt, correlationId);
 
       // 2. Open DB transaction for atomic Suite State + Mapping + Audit logging
       const org = await this.orgRepository['prisma'].$transaction(async (tx: any) => {

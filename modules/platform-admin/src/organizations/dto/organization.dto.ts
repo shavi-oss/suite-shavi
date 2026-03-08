@@ -6,6 +6,11 @@
  */
 export class CreateOrganizationDto {
   name!: string;
+  /** Core required — admin user bootstrapped alongside the org */
+  adminEmail!: string;
+  adminPassword!: string;
+  adminFirstName!: string;
+  adminLastName!: string;
 }
 
 /**

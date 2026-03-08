@@ -181,7 +181,7 @@ export class CoreClient {
    * @returns Created Core Organization ID
    */
   async createOrganization(
-    dto: { name: string },
+    dto: { name: string; adminEmail: string; adminPassword: string; adminFirstName: string; adminLastName: string },
     coreJwt: string,
     correlationId: string,
   ): Promise<string> {

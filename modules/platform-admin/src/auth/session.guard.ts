@@ -38,7 +38,7 @@ type Request = any;
 const WRITE_METHOD_PATTERN = /^(POST|PATCH|DELETE)$/i;
 /** Extend pattern to include /org-mappings (Gate 8: POST needs coreJwt for validateOrganizationExists) */
 const WRITE_PATH_PATTERN =
-  /^\/api\/platform-admin\/(organizations|org-mappings)(\/ |$)/i;
+  /^\/api\/platform-admin\/(organizations|org-mappings)(\/|$)/i;
 
 function b64url(buf: Buffer): string {
   return buf.toString('base64url');

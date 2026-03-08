@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { assertCoreEndpointAllowed } from './core.contract.assert';
 
 /**
@@ -190,7 +190,7 @@ export class CoreClient {
 
     // FAIL-CLOSED: Stop immediately if auth contexts are missing
     if (!coreJwt) {
-      throw new Error('STOP: coreJwt is required to create a Core organization');
+      throw new UnauthorizedException('Core write auth not configured');
     }
 
     if (!correlationId || correlationId.trim() === '') {
@@ -268,7 +268,7 @@ export class CoreClient {
     assertCoreEndpointAllowed('PATCH', path);
 
     if (!coreJwt) {
-      throw new Error(`STOP: coreJwt is required to ${action} a Core organization`);
+      throw new UnauthorizedException('Core write auth not configured');
     }
     if (!correlationId || correlationId.trim() === '') {
       throw new Error('STOP: Correlation ID is required for Core API calls');

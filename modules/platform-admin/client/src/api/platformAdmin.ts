@@ -186,6 +186,16 @@ export async function unsuspendOrganization(id: string): Promise<Organization> {
   return response.json()
 }
 
+export async function deleteOrganization(id: string): Promise<void> {
+  const response = await fetchWithCorrelation(`${API_BASE}/organizations/${id}`, {
+    method: 'DELETE',
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to deactivate organization')
+  }
+}
+
 export async function getInternalUsers(): Promise<InternalUser[]> {
   const response = await fetchWithCorrelation(`${API_BASE}/internal-users`)
 

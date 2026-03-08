@@ -93,6 +93,10 @@ interface Organization {
 
 interface CreateOrganizationDto {
   name: string
+  adminEmail: string
+  adminPassword: string
+  adminFirstName: string
+  adminLastName: string
 }
 
 interface InternalUser {
@@ -147,6 +151,11 @@ export async function createOrganization(dto: CreateOrganizationDto): Promise<Or
   })
 
   if (!response.ok) {
+    if (response.status === 400) {
+      // Try to surface safe server validation message (e.g. "Email already registered")
+      const body = await response.json().catch(() => ({})) as { message?: string }
+      throw new Error(body.message || 'Invalid request. Please check your input.')
+    }
     throw new Error('Failed to create organization')
   }
 

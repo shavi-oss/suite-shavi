@@ -1,0 +1,24 @@
+# .dockerignore — Suite-Shavi Docker build context exclusions
+#
+# Purpose: Exclude files that are not needed in the Docker build context,
+# particularly nested node_modules that would shadow root-level generated
+# Prisma client and cause runtime type/value mismatch.
+#
+# Evidence: Gate 10 workspace reconciliation — modules/platform-admin/node_modules/.prisma/client
+# was a stale generated client (no InviteStatus). After COPY . . in Dockerfile, it shadowed
+# the correctly-generated /app/node_modules/.prisma/client at runtime, causing silent startup crash.
+# Node.js resolves .prisma/client relative to @prisma/client's location, finds the nested stale
+# copy first, returns undefined for InviteStatus.invited etc.
+
+# Exclude nested platform-admin node_modules (npm ci at root installs everything needed)
+modules/platform-admin/node_modules/
+
+# Exclude local dist output (compiled fresh in Docker build)
+dist/
+
+# Exclude development/test artifacts
+*.test.mjs
+forensic-*/
+node_error*.txt
+node_output*.txt
+variables.txt

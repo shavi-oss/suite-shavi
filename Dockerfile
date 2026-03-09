@@ -20,6 +20,16 @@ RUN npm ci --ignore-scripts
 # ── Source copy phase ────────────────────────────────────────────────────────
 COPY . .
 
+# ── Remove stale nested generated Prisma client ───────────────────────────────
+# modules/platform-admin/node_modules/.prisma/client is a stale generated client
+# that shadows the correctly-generated /app/node_modules/.prisma/client at runtime.
+# Node.js resolves .prisma/client relative to @prisma/client's location — the nested
+# stale copy intercepts that resolution and returns undefined for Gate 10 enums
+# (InviteStatus, ActionType.invite/redeem) causing a silent startup crash.
+# Evidence: Gate 10 workspace reconciliation root cause analysis (2026-03-09).
+# Permanent fix: .dockerignore excludes this directory (defense-in-depth: this RUN also cleans it).
+RUN rm -rf modules/platform-admin/node_modules/.prisma
+
 # ── Prisma client generate ───────────────────────────────────────────────────
 # Schema lives at modules/platform-admin/prisma/schema.prisma
 # Output: node_modules/.prisma/client (per schema.prisma generator config)

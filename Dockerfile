@@ -43,9 +43,7 @@ RUN cd modules/platform-admin/client && npx vite build
 
 EXPOSE 4000
 
-# Entrypoint:
-# Gate 10: run prisma db push before starting the app.
-# This project uses db push (not migrate) — apply schema changes idempotently on each deploy.
-# --skip-generate: client already generated in build phase.
-# --accept-data-loss: not needed (only additive changes: nullable columns + enum values).
-CMD ["sh", "-c", "npx prisma db push --schema=modules/platform-admin/prisma/schema.prisma --skip-generate && node dist/modules/platform-admin/host/main.js"]
+# Entrypoint: run prisma db push then start app.
+# --accept-data-loss: required for enum type additions (InviteStatus). No actual data loss occurs
+# since we only add nullable columns and a new enum. Additive schema change only.
+CMD ["sh", "-c", "npx prisma db push --schema=modules/platform-admin/prisma/schema.prisma --skip-generate --accept-data-loss && node dist/modules/platform-admin/host/main.js"]

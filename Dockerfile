@@ -44,7 +44,8 @@ RUN cd modules/platform-admin/client && npx vite build
 EXPOSE 4000
 
 # Entrypoint:
-# Gate 10: run prisma migrate deploy before starting the app so schema migrations
-# (including Gate 10 invite fields) are applied automatically on every Railway deploy.
-# migrate deploy is idempotent — already-applied migrations are skipped safely.
-CMD ["sh", "-c", "npx prisma migrate deploy --schema=modules/platform-admin/prisma/schema.prisma && node dist/modules/platform-admin/host/main.js"]
+# Gate 10: run prisma db push before starting the app.
+# This project uses db push (not migrate) — apply schema changes idempotently on each deploy.
+# --skip-generate: client already generated in build phase.
+# --accept-data-loss: not needed (only additive changes: nullable columns + enum values).
+CMD ["sh", "-c", "npx prisma db push --schema=modules/platform-admin/prisma/schema.prisma --skip-generate && node dist/modules/platform-admin/host/main.js"]

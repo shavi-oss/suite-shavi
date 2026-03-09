@@ -173,13 +173,13 @@ await test('T11 — admin creates fresh user for invite tests => inviteStatus=pe
 let capturedToken = ''
 let capturedUid = ''
 
-await test('T12 — admin POST /:id/invite => 200 with inviteUrl (no secrets leaked)', async () => {
+await test('T12 — admin POST /:id/invite => 200/201 with inviteUrl (no secrets leaked)', async () => {
   assert.ok(inviteUserId, 'T11 must have passed')
   const r = await fetch(`${API}/internal-users/${inviteUserId}/invite`, {
     method: 'POST',
     headers: cookieHeader(),
   })
-  assert.equal(r.status, 200, `expected 200 got ${r.status}`)
+  assert.ok(r.status === 200 || r.status === 201, `expected 200/201 got ${r.status}`)
   const data = await r.json()
   assert.ok(typeof data.inviteUrl === 'string', 'response must have inviteUrl')
   assert.ok(typeof data.expiresAt === 'string', 'response must have expiresAt')

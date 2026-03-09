@@ -53,15 +53,22 @@ model SuiteOrgMapping {
 // Table 3: InternalUser
 // Purpose: Store internal platform admin users
 // Evidence: MODULE_SCOPE_LOCK.md Section 2.3 (Lines 125-138)
+// Gate 10: Added invite + credential lifecycle fields
 model InternalUser {
-  id        String     @id @default(uuid()) @db.Uuid
-  email     String     @unique @db.VarChar(255)
-  name      String     @db.VarChar(255)
-  role      UserRole
-  status    UserStatus @default(active)
-  createdAt DateTime   @default(now()) @db.Timestamptz
-  updatedAt DateTime   @updatedAt @db.Timestamptz
-  createdBy String     @db.Uuid
+  id               String       @id @default(uuid()) @db.Uuid
+  email            String       @unique @db.VarChar(255)
+  name             String       @db.VarChar(255)
+  role             UserRole
+  status           UserStatus   @default(active)
+  createdAt        DateTime     @default(now()) @db.Timestamptz
+  updatedAt        DateTime     @updatedAt @db.Timestamptz
+  createdBy        String       @db.Uuid
+
+  // Gate 10 — Credential lifecycle fields
+  passwordHash     String?      @db.VarChar(255) // scrypt "salt:hash" same format as OPERATOR_CREDENTIALS
+  inviteTokenHash  String?      @db.VarChar(255) // scrypt hash of raw invite token — raw token never stored
+  inviteExpiresAt  DateTime?    @db.Timestamptz  // 72h from invite generation
+  inviteStatus     InviteStatus @default(pending)
 
   @@map("internal_users")
 }
@@ -78,6 +85,14 @@ enum UserStatus {
   deactivated
 }
 
+// Gate 10: Invite status lifecycle
+enum InviteStatus {
+  pending   // user created, no invite generated yet
+  invited   // invite generated and active
+  active    // invite redeemed, password set, user can log in
+  expired   // invite generated but expired without redemption
+}
+
 // Table 4: PlatformAdminAuditLog
 // Purpose: Immutable audit log for all administrative actions
 // Evidence: MODULE_SCOPE_LOCK.md Section 2.3 (Lines 140-154)
@@ -87,7 +102,7 @@ model PlatformAdminAuditLog {
   entityType    EntityType
   entityId      String     @db.VarChar(255)
   action        ActionType
-  performedBy   String     @db.Uuid
+  performedBy   String     @db.VarChar(255) // Gate 10: changed from Uuid to VarChar — redeem has tokenId not userId
   performedAt   DateTime   @default(now()) @db.Timestamptz
   result        ResultType
   metadata      Json?      @db.JsonB
@@ -111,6 +126,8 @@ enum ActionType {
   unsuspend
   link
   deactivate
+  invite     // Gate 10: invite generated
+  redeem     // Gate 10: invite redeemed, password set
 }
 
 enum ResultType {

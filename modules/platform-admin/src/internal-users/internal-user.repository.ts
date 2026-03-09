@@ -42,4 +42,11 @@ export class InternalUserRepository {
       data: { status },
     });
   }
+
+  async updateRole(id: string, role: any) {
+    return this.prisma.internalUser.update({
+      where: { id },
+      data: { role },
+    });
+  }
 }

@@ -284,7 +284,7 @@ export async function getAuditLogs(filters?: AuditLogFilters): Promise<AuditLog[
   return response.json()
 }
 
-export type { Organization, CreateOrganizationDto, InternalUser, CreateInternalUserDto, AuditLog, AuditLogFilters, ApiError }
+export type { Organization, CreateOrganizationDto, AuditLog, AuditLogFilters, ApiError }
 
 // ── Org Mapping ──────────────────────────────────────────────────────────────
 
@@ -334,6 +334,27 @@ export async function createOrgMapping(dto: CreateOrgMappingDto): Promise<OrgMap
       }
     }
     throw new Error('Failed to create org mapping')
+  }
+  return response.json()
+}
+
+// ── Internal Users ────────────────────────────────────────────────────────────
+
+export async function updateInternalUserRole(
+  id: string,
+  role: InternalUser['role'],
+): Promise<InternalUser> {
+  const response = await fetchWithCorrelation(`${API_BASE}/internal-users/${id}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  })
+  if (!response.ok) {
+    try {
+      const body = await response.json()
+      throw new Error(body?.message || 'Failed to update user role')
+    } catch {
+      throw new Error('Failed to update user role')
+    }
   }
   return response.json()
 }

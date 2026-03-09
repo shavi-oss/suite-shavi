@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InternalUserRepository } from './internal-user.repository';
 import { AuditService } from '../audit/audit.service';
 import { UserStatus, EntityType, ActionType, ResultType } from '@prisma/client';
@@ -118,6 +118,53 @@ export class InternalUserService {
       return this.mapToResponse(updated);
     } catch (error) {
       throw new Error('INTERNAL_USER_DEACTIVATE_FAILED');
+    }
+  }
+
+  /**
+   * changeRole — Gate 9
+   * RBAC: only platform_admin may assign platform_admin role
+   * Fail-closed: ForbiddenException if developer_ops tries to assign platform_admin
+   */
+  async changeRole(
+    id: string,
+    newRole: string,
+    actorRole: string,
+    userId: string,
+    correlationId: string,
+  ): Promise<InternalUserResponseDto> {
+    // Fail-closed: only platform_admin can assign platform_admin role
+    if (newRole === 'platform_admin' && actorRole !== 'platform_admin') {
+      throw new ForbiddenException('Only platform_admin may assign platform_admin role');
+    }
+
+    const user = await this.userRepository.findById(id);
+    if (!user) {
+      throw new NotFoundException(`Internal user ${id} not found`);
+    }
+
+    try {
+      const updated = await this.userRepository['prisma'].$transaction(async (tx: any) => {
+        const updatedUser = await tx.internalUser.update({
+          where: { id },
+          data: { role: newRole },
+        });
+
+        await this.auditService.logAction({
+          correlationId,
+          entityType: EntityType.internal_user,
+          entityId: id,
+          action: ActionType.update,
+          performedBy: userId,
+          result: ResultType.success,
+        }, tx);
+
+        return updatedUser;
+      });
+
+      return this.mapToResponse(updated);
+    } catch (error) {
+      throw new Error('INTERNAL_USER_ROLE_CHANGE_FAILED');
     }
   }
 

@@ -9,7 +9,7 @@ import {
   Req,
 } from '@nestjs/common';
 import { InternalUserService } from './internal-user.service';
-import { CreateInternalUserDto, InternalUserResponseDto } from './dto/create-internal-user.dto';
+import { CreateInternalUserDto, UpdateRoleDto, InternalUserResponseDto } from './dto/create-internal-user.dto';
 import { RbacGuard, RequirePermission } from '../security/rbac.guard';
 import { SessionGuard } from '../auth/session.guard';
 import { ExplicitAllow } from '../../guards/explicit-allow.guard';
@@ -84,5 +84,24 @@ export class InternalUserController {
     const userId = req.user.id;
 
     return this.internalUserService.deactivate(id, userId, correlationId);
+  }
+
+  /**
+   * PATCH /api/platform-admin/internal-users/:id/role
+   * Change user role — WRITE permission required
+   * Gate 9: only platform_admin may assign platform_admin role (enforced in service)
+   */
+  @Patch(':id/role')
+  @RequirePermission(Resource.INTERNAL_USERS, Action.WRITE)
+  async changeRole(
+    @Param('id') id: string,
+    @Body() dto: UpdateRoleDto,
+    @Req() req: any,
+  ): Promise<InternalUserResponseDto> {
+    const correlationId = req.headers['x-correlation-id'] || randomUUID();
+    const userId = req.user.id;
+    const actorRole = req.user.role;
+
+    return this.internalUserService.changeRole(id, dto.role, actorRole, userId, correlationId);
   }
 }

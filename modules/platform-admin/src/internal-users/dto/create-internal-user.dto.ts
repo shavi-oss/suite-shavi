@@ -11,6 +11,13 @@ export class CreateInternalUserDto {
 }
 
 /**
+ * Update Role DTO — Gate 9
+ */
+export class UpdateRoleDto {
+  role!: 'platform_admin' | 'developer_ops' | 'support' | 'viewer';
+}
+
+/**
  * Internal User Response DTO
  */
 export class InternalUserResponseDto {

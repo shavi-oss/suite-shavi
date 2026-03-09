@@ -358,3 +358,46 @@ export async function updateInternalUserRole(
   }
   return response.json()
 }
+
+// Gate 10 — Invite + credential lifecycle
+
+export interface InviteResult {
+  inviteUrl: string
+  expiresAt: string
+}
+
+export async function generateInvite(userId: string): Promise<InviteResult> {
+  const response = await fetchWithCorrelation(`${API_BASE}/internal-users/${userId}/invite`, {
+    method: 'POST',
+  })
+  if (!response.ok) {
+    try {
+      const body = await response.json()
+      throw new Error(body?.message || 'Failed to generate invite')
+    } catch {
+      throw new Error('Failed to generate invite')
+    }
+  }
+  return response.json()
+}
+
+export async function redeemInvite(
+  uid: string,
+  token: string,
+  password: string,
+  confirmPassword: string,
+): Promise<{ message: string }> {
+  const response = await fetchWithCorrelation(`${API_BASE}/auth/redeem-invite`, {
+    method: 'POST',
+    body: JSON.stringify({ uid, token, password, confirmPassword }),
+  })
+  if (!response.ok) {
+    try {
+      const body = await response.json()
+      throw new Error(body?.message || 'Invalid or expired invite token')
+    } catch {
+      throw new Error('Invalid or expired invite token')
+    }
+  }
+  return response.json()
+}

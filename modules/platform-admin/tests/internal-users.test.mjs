@@ -1,7 +1,7 @@
 /**
- * Internal Users Regression Test — Gate 9
+ * Internal Users Regression Test — Gate 9 + Gate 10
  *
- * Purpose: API-level regression coverage for internal user management flows.
+ * Purpose: API-level regression coverage for internal user management + invite flows.
  * No test runner needed — uses Node.js built-in assert + fetch (Node 18+).
  *
  * Usage:
@@ -41,18 +41,16 @@ function cookieHeader() {
   return sessionCookie ? { Cookie: sessionCookie } : {}
 }
 
-// ─── Test Suite ───────────────────────────────────────────────────────────────
-
-console.log('\nGate 9 — Internal Users Regression Tests')
+console.log('\nGate 9 + Gate 10 — Internal Users Regression Tests')
 console.log(`Target: ${BASE}\n`)
 
-// T1: Unauthenticated list users — 401 or 403 (fail-closed)
+// ─── Gate 9 — Internal Users Core Flow ────────────────────────────────────────
+
 await test('T1 — unauthenticated GET internal-users => 401/403', async () => {
   const r = await fetch(`${API}/internal-users`)
   assert.ok(r.status === 401 || r.status === 403, `expected 401/403 got ${r.status}`)
 })
 
-// T2: Unauthenticated create user — 401 or 403 (fail-closed)
 await test('T2 — unauthenticated POST internal-users => 401/403', async () => {
   const r = await fetch(`${API}/internal-users`, {
     method: 'POST',
@@ -62,7 +60,6 @@ await test('T2 — unauthenticated POST internal-users => 401/403', async () => 
   assert.ok(r.status === 401 || r.status === 403, `expected 401/403 got ${r.status}`)
 })
 
-// T3: Login
 await test('T3 — login with valid creds => 200 + Set-Cookie', async () => {
   const r = await fetch(`${API}/auth/login`, {
     method: 'POST',
@@ -78,7 +75,6 @@ await test('T3 — login with valid creds => 200 + Set-Cookie', async () => {
   sessionCookie = cookie.split(';')[0]
 })
 
-// T4: Admin can list internal users
 await test('T4 — admin GET internal-users => 200 JSON array', async () => {
   const r = await fetch(`${API}/internal-users`, { headers: cookieHeader() })
   assert.equal(r.status, 200, `expected 200 got ${r.status}`)
@@ -86,7 +82,6 @@ await test('T4 — admin GET internal-users => 200 JSON array', async () => {
   assert.ok(Array.isArray(data), 'response must be an array')
 })
 
-// T5: Admin can create internal user
 await test('T5 — admin create user => 200/201 with id', async () => {
   const r = await fetch(`${API}/internal-users`, {
     method: 'POST',
@@ -104,7 +99,6 @@ await test('T5 — admin create user => 200/201 with id', async () => {
   createdUserId = data.id
 })
 
-// T6: Admin can get internal user by id
 await test('T6 — admin GET internal-users/:id => 200', async () => {
   assert.ok(createdUserId, 'T5 must have passed')
   const r = await fetch(`${API}/internal-users/${createdUserId}`, { headers: cookieHeader() })
@@ -113,7 +107,6 @@ await test('T6 — admin GET internal-users/:id => 200', async () => {
   assert.equal(data.id, createdUserId, 'id must match')
 })
 
-// T7: Admin can change user role to developer_ops
 await test('T7 — admin change role => 200 with updated role', async () => {
   assert.ok(createdUserId, 'T5 must have passed')
   const r = await fetch(`${API}/internal-users/${createdUserId}/role`, {
@@ -122,7 +115,7 @@ await test('T7 — admin change role => 200 with updated role', async () => {
     body: JSON.stringify({ role: 'developer_ops' }),
   })
   if (r.status === 403 || r.status === 404) {
-    console.log(`    ⚠️  T7: ${r.status} = Gate 9 PATCH /role not yet deployed`)
+    console.log(`    ⚠️  T7: ${r.status} = PATCH /role not deployed`)
     return
   }
   assert.equal(r.status, 200, `expected 200 got ${r.status}`)
@@ -130,7 +123,6 @@ await test('T7 — admin change role => 200 with updated role', async () => {
   assert.equal(data.role, 'developer_ops', 'role must be updated')
 })
 
-// T8: Admin can disable (deactivate) a user
 await test('T8 — admin deactivate user => 200 with deactivated status', async () => {
   assert.ok(createdUserId, 'T5 must have passed')
   const r = await fetch(`${API}/internal-users/${createdUserId}/deactivate`, {
@@ -142,23 +134,134 @@ await test('T8 — admin deactivate user => 200 with deactivated status', async 
   assert.equal(data.status, 'deactivated', 'user must be deactivated')
 })
 
-// T9: Double-deactivate fails (fail-closed) 
 await test('T9 — double deactivate => 400/409 (fail-closed)', async () => {
   assert.ok(createdUserId, 'T8 must have passed')
   const r = await fetch(`${API}/internal-users/${createdUserId}/deactivate`, {
     method: 'PATCH',
     headers: cookieHeader(),
   })
-  // BFF throws BadRequestException for already-deactivated user
   assert.ok(r.status === 400 || r.status === 409, `expected 400/409 got ${r.status}`)
 })
 
-// T10: GET non-existent user => 404
 await test('T10 — GET non-existent user => 404', async () => {
   const r = await fetch(`${API}/internal-users/00000000-0000-0000-0000-000000000000`, {
     headers: cookieHeader(),
   })
   assert.ok(r.status === 404 || r.status === 400, `expected 404/400 got ${r.status}`)
+})
+
+// ─── Gate 10 — Invite + Credential Lifecycle ──────────────────────────────────
+
+let inviteUserId = ''
+await test('T11 — admin creates fresh user for invite tests => inviteStatus=pending', async () => {
+  const r = await fetch(`${API}/internal-users`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...cookieHeader() },
+    body: JSON.stringify({
+      name: `G10-Invite-User-${TS}`,
+      email: `g10invite${TS}@test.io`,
+      role: 'viewer',
+    }),
+  })
+  assert.ok(r.status === 200 || r.status === 201, `expected 200/201 got ${r.status}`)
+  const data = await r.json()
+  assert.ok(typeof data.id === 'string', 'response must have id')
+  assert.equal(data.inviteStatus, 'pending', 'new user must have inviteStatus=pending')
+  inviteUserId = data.id
+})
+
+let capturedToken = ''
+let capturedUid = ''
+
+await test('T12 — admin POST /:id/invite => 200 with inviteUrl (no secrets leaked)', async () => {
+  assert.ok(inviteUserId, 'T11 must have passed')
+  const r = await fetch(`${API}/internal-users/${inviteUserId}/invite`, {
+    method: 'POST',
+    headers: cookieHeader(),
+  })
+  assert.equal(r.status, 200, `expected 200 got ${r.status}`)
+  const data = await r.json()
+  assert.ok(typeof data.inviteUrl === 'string', 'response must have inviteUrl')
+  assert.ok(typeof data.expiresAt === 'string', 'response must have expiresAt')
+  const url = new URL(data.inviteUrl)
+  assert.ok(url.searchParams.has('token'), 'inviteUrl must have token param')
+  assert.ok(url.searchParams.has('uid'), 'inviteUrl must have uid param')
+  // No secret hash leakage
+  const raw = JSON.stringify(data)
+  assert.ok(!raw.includes('inviteTokenHash'), 'inviteTokenHash must not be in response')
+  assert.ok(!raw.includes('passwordHash'), 'passwordHash must not be in response')
+  capturedToken = url.searchParams.get('token')
+  capturedUid = url.searchParams.get('uid')
+})
+
+await test('T13 — unauthenticated POST /:id/invite => 401/403', async () => {
+  assert.ok(inviteUserId, 'T11 must have passed')
+  const r = await fetch(`${API}/internal-users/${inviteUserId}/invite`, { method: 'POST' })
+  assert.ok(r.status === 401 || r.status === 403, `expected 401/403 got ${r.status}`)
+})
+
+await test('T14 — redeem with invalid token => 400 generic (no enumeration)', async () => {
+  assert.ok(capturedUid, 'T12 must have passed')
+  const r = await fetch(`${API}/auth/redeem-invite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: capturedUid,
+      token: 'badtoken_definitely_wrong_0000000000000000000000000000000000000000000',
+      password: 'Valid-Password-Gate10!',
+      confirmPassword: 'Valid-Password-Gate10!',
+    }),
+  })
+  assert.ok(r.status === 400 || r.status === 401, `expected 400/401 got ${r.status}`)
+  const body = await r.json()
+  assert.ok(typeof body.message === 'string', 'must have message')
+  assert.ok(!body.message.toLowerCase().includes('password'), 'error must not reveal password info')
+})
+
+await test('T15 — redeem with valid token + password => 200', async () => {
+  assert.ok(capturedToken && capturedUid, 'T12 must have passed')
+  const r = await fetch(`${API}/auth/redeem-invite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: capturedUid,
+      token: capturedToken,
+      password: 'Valid-Password-Gate10!',
+      confirmPassword: 'Valid-Password-Gate10!',
+    }),
+  })
+  assert.equal(r.status, 200, `expected 200 got ${r.status}`)
+  const data = await r.json()
+  assert.ok(typeof data.message === 'string', 'must have success message')
+})
+
+await test('T16 — reused invite token => 400 (one-time use enforced)', async () => {
+  assert.ok(capturedToken && capturedUid, 'T12 must have passed')
+  const r = await fetch(`${API}/auth/redeem-invite`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      uid: capturedUid,
+      token: capturedToken,
+      password: 'DifferentPassword-G10!',
+      confirmPassword: 'DifferentPassword-G10!',
+    }),
+  })
+  assert.ok(r.status === 400 || r.status === 401, `expected 400/401 got ${r.status}`)
+})
+
+await test('T17 — bootstrap env admin login still works after Gate 10', async () => {
+  const r = await fetch(`${API}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      email: process.env.SUITE_ADMIN_EMAIL || 'admin@bassan.io',
+      password: process.env.SUITE_ADMIN_PASSWORD || 'TestPass123!@#',
+    }),
+  })
+  assert.equal(r.status, 200, `expected 200 got ${r.status}`)
+  const cookie = r.headers.get('set-cookie') || ''
+  assert.ok(cookie.includes('sessionId'), 'must still set sessionId cookie')
 })
 
 // ─── Summary ──────────────────────────────────────────────────────────────────

@@ -10,6 +10,7 @@ import { AuditLogList } from './components/AuditLogList'
 import { Header } from './components/Header'
 import { NavigationRail } from './components/NavigationRail'
 import { WorkspaceContainer } from './components/WorkspaceContainer'
+import { SetPasswordPage } from './components/SetPasswordPage'
 import { getSession, login, logout } from './api/platformAdmin'
 
 type Section = 'organizations' | 'users' | 'roles' | 'audit'
@@ -21,6 +22,14 @@ type UserView = 'list' | 'detail' | 'create'
 type AuthStatus = 'unknown' | 'anonymous' | 'authenticated' | 'error'
 
 function App() {
+  // Gate 10: detect set-password invite redemption URL
+  const urlParams = new URLSearchParams(window.location.search)
+  const inviteToken = urlParams.get('token')
+  const inviteUid = urlParams.get('uid')
+  if (inviteToken && inviteUid) {
+    return <SetPasswordPage uid={inviteUid} token={inviteToken} />
+  }
+
   // ── Auth state ───────────────────────────────────────────────────────────
   const [authStatus, setAuthStatus] = useState<AuthStatus>('unknown')
   const [loginEmail, setLoginEmail] = useState('')

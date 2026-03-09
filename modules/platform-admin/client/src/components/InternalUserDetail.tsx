@@ -126,7 +126,7 @@ export function InternalUserDetail({ userId, onBack }: InternalUserDetailProps) 
     }
   }
 
-  const inviteStatus = (user as any).inviteStatus ?? 'pending'
+  const inviteStatus = user.inviteStatus ?? 'pending'
 
   return (
     <div>

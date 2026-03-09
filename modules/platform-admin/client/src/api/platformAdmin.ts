@@ -99,18 +99,20 @@ interface CreateOrganizationDto {
   adminLastName: string
 }
 
-interface InternalUser {
+export interface InternalUser {
   id: string
   email: string
   name: string
   role: 'platform_admin' | 'developer_ops' | 'support' | 'viewer'
   status: 'active' | 'deactivated'
+  // Gate 10: invite lifecycle status
+  inviteStatus: 'pending' | 'invited' | 'active' | 'expired'
   createdAt: string
   updatedAt: string
   createdBy: string
 }
 
-interface CreateInternalUserDto {
+export interface CreateInternalUserDto {
   name: string
   email: string
   role: 'platform_admin' | 'developer_ops' | 'support' | 'viewer'

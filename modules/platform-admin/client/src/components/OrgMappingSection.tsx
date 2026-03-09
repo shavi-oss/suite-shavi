@@ -63,6 +63,9 @@ export function OrgMappingSection({ suiteOrgId }: Props) {
     }
   }
 
+  // Extract isCreating so TS does not narrow it away inside JSX branches
+  const isCreating = state === 'creating'
+
   const sectionStyle: React.CSSProperties = {
     marginTop: '2rem',
     padding: '1rem',
@@ -153,23 +156,23 @@ export function OrgMappingSection({ suiteOrgId }: Props) {
               onChange={(e) => setCoreOrgId(e.target.value)}
               placeholder="e.g. 3fa85f64-5717-4562-b3fc-2c963f66afa6"
               autoComplete="off"
-              disabled={state === 'creating'}
+              disabled={isCreating}
             />
           </div>
           <button
             onClick={handleCreate}
-            disabled={state === 'creating' || !coreOrgId.trim()}
+            disabled={isCreating || !coreOrgId.trim()}
             style={{
               padding: '0.5rem 1rem',
-              background: state === 'creating' ? '#6c757d' : '#0d6efd',
+              background: isCreating ? '#6c757d' : '#0d6efd',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: state === 'creating' ? 'not-allowed' : 'pointer',
+              cursor: isCreating ? 'not-allowed' : 'pointer',
               fontSize: '0.9rem',
             }}
           >
-            {state === 'creating' ? 'Linking…' : 'Link to Core Org'}
+            {isCreating ? 'Linking…' : 'Link to Core Org'}
           </button>
         </div>
       )}

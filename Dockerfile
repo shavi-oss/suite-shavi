@@ -44,6 +44,7 @@ RUN cd modules/platform-admin/client && npx vite build
 EXPOSE 4000
 
 # Entrypoint:
-# Schema is provisioned once by the operator before first deploy — see docs/runbook/DB_PROVISIONING.md.
-# No DB migration runs at container startup (fail-closed: if DB is unavailable the app reports 5xx on DB routes).
-CMD ["node", "dist/modules/platform-admin/host/main.js"]
+# Gate 10: run prisma migrate deploy before starting the app so schema migrations
+# (including Gate 10 invite fields) are applied automatically on every Railway deploy.
+# migrate deploy is idempotent — already-applied migrations are skipped safely.
+CMD ["sh", "-c", "npx prisma migrate deploy --schema=modules/platform-admin/prisma/schema.prisma && node dist/modules/platform-admin/host/main.js"]

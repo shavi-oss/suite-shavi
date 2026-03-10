@@ -15,7 +15,11 @@ WORKDIR /app
 # Copy package lock files first for layer caching
 COPY package.json package-lock.json ./
 
-RUN npm ci --ignore-scripts
+# note: intentionally NOT using --ignore-scripts so Prisma postinstall
+# can download the linux-musl query engine binary for Alpine runtime.
+# With --ignore-scripts, postinstall is skipped and the binary is never
+# downloaded → Prisma crashes at runtime with SIGABRT (zero log output).
+RUN npm ci
 
 # ── Source copy phase ────────────────────────────────────────────────────────
 COPY . .
@@ -34,6 +38,13 @@ RUN rm -rf modules/platform-admin/node_modules/.prisma
 # Schema lives at modules/platform-admin/prisma/schema.prisma
 # Output: node_modules/.prisma/client (per schema.prisma generator config)
 RUN npx prisma generate --schema=modules/platform-admin/prisma/schema.prisma
+
+# ── Verify linux-musl engine binary is present (fail-fast) ───────────────────
+# If this step fails, the Prisma binary was not downloaded and the app would
+# crash silently at runtime. This makes the build fail early with a clear error.
+RUN ls node_modules/.prisma/client/libquery_engine-linux-musl*.so.node || \
+    ls node_modules/.prisma/client/query_engine-linux-musl* || \
+    { echo 'ERROR: linux-musl Prisma engine binary missing — app will crash at runtime'; echo 'Files in .prisma/client:'; ls node_modules/.prisma/client/; exit 1; }
 
 # ── BFF TypeScript compile ───────────────────────────────────────────────────
 # tsconfig.bff.json → outDir: dist/modules/platform-admin (excludes client)
@@ -56,4 +67,4 @@ EXPOSE 4000
 # Entrypoint: run prisma db push then start app.
 # --accept-data-loss: required for enum type additions (InviteStatus). No actual data loss occurs
 # since we only add nullable columns and a new enum. Additive schema change only.
-CMD ["sh", "-c", "npx prisma db push --schema=modules/platform-admin/prisma/schema.prisma --skip-generate --accept-data-loss && node dist/modules/platform-admin/host/main.js"]
+CMD ["sh", "-c", "npx prisma db push --schema=modules/platform-admin/prisma/schema.prisma --skip-generate --accept-data-loss && echo 'DB_PUSH_OK: starting node...' && node dist/modules/platform-admin/host/main.js || { echo 'NODE_CRASH: exit code' $?; exit 1; }"]

@@ -3,8 +3,15 @@
 // Tables: 4 ONLY (SuiteOrganization, SuiteOrgMapping, InternalUser, PlatformAdminAuditLog)
 
 generator client {
-  provider = "prisma-client-js"
-  output   = "../../../node_modules/.prisma/client"
+  provider      = "prisma-client-js"
+  output        = "../../../node_modules/.prisma/client"
+  // binaryTargets: required for Railway/Alpine (linux-musl) Docker deployment.
+  // Without this: npm ci --ignore-scripts skips postinstall binary download.
+  // prisma generate then only produces query_engine-windows.dll.node (dev machine).
+  // At runtime on Alpine, Prisma client cannot find a matching engine binary
+  // and crashes silently before any NestJS log output (zero stdout after db push).
+  // Evidence: Gate 10 Railway crash forensic (2026-03-10).
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
 }
 
 datasource db {

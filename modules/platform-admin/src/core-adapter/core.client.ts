@@ -5,11 +5,13 @@ import { assertCoreEndpointAllowed } from './core.contract.assert';
  * Core Client Adapter
  * 
  * Purpose: Call ONLY the authorized Core endpoint
- * Allowed: GET /api/v1/organizations/:id
- * Evidence: CORE_CONTRACT_V1_EXTRACT.md Section B.8 (Line 182)
+ * Allowed: GET /api/v2/admin/organizations/:id (admin S2S verification),
+ *          POST /api/v2/admin/organizations,
+ *          PATCH /api/v2/admin/organizations/:id/suspend|unsuspend|deactivate
+ * Evidence: INTEGRATION_CONTRACT_CORE.md v2 (canonical, 2026-07-11)
  * 
- * MUST: Forward validated Core JWT as-is
- * MUST NOT: Mint or construct Core JWTs
+ * MUST: Forward minted admin S2S Core JWT (coreJwt, from SessionGuard) as-is
+ * MUST NOT: Mint or construct Core JWTs (done by SessionGuard)
  * MUST NOT: Log JWT in any form (including error objects)
  * Evidence: ARCHITECTURAL_LAWS.md LAW-5, MODULE_SECURITY_LAWS.md Section 3.5
  */
@@ -49,12 +51,12 @@ export class CoreClient {
   /**
    * Validate Core Organization Exists
    * 
-   * Endpoint: GET /api/v1/organizations/:id
+   * Endpoint: GET /api/v2/admin/organizations/:id  (ADMIN S2S, not user-scoped)
    * Purpose: Validate that Core organizationId exists before creating mapping
-   * Evidence: MODULE_INTEGRATION_PLAN.md Section 3.1 (Lines 70-77)
+   * Evidence: INTEGRATION_CONTRACT_CORE.md v2 (canonical, 2026-07-11)
    * 
    * @param coreOrgId - Core organization ID to validate
-   * @param coreJwt - User-scoped Core JWT (forwarded as-is, NEVER logged)
+   * @param coreJwt - Admin S2S Core JWT (minted by SessionGuard, forwarded as-is, NEVER logged)
    * @param correlationId - Correlation ID for tracing
    * @returns true if org exists, false if 404
    * @throws Error on 5xx or network errors
@@ -65,15 +67,15 @@ export class CoreClient {
     correlationId: string,
   ): Promise<boolean> {
     // RUNTIME CONTRACT ASSERTION: Verify endpoint is in allowlist
-    // Evidence: CORE_V1_INTEGRATION_LOCK.md Section 8.1
-    assertCoreEndpointAllowed('GET', `/api/v1/organizations/${coreOrgId}`);
+    // Evidence: INTEGRATION_CONTRACT_CORE.md v2 (canonical, 2026-07-11)
+    assertCoreEndpointAllowed('GET', `/api/v2/admin/organizations/${coreOrgId}`);
 
     // RUNTIME CONTRACT ASSERTION: Correlation ID must be present
     if (!correlationId || correlationId.trim() === '') {
       throw new Error('Correlation ID is required for Core API calls');
     }
 
-    const url = `${this.coreBaseUrl}/api/v1/organizations/${coreOrgId}`;
+    const url = `${this.coreBaseUrl}/api/v2/admin/organizations/${coreOrgId}`;
 
     try {
       // Use native fetch (Node.js 18+ built-in)

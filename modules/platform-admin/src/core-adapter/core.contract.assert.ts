@@ -7,7 +7,8 @@
  * ALLOWED: GET /api/v1/organizations/:id, POST /api/v2/admin/organizations,
  *           PATCH /api/v2/admin/organizations/:id/suspend,
  *           PATCH /api/v2/admin/organizations/:id/unsuspend,
- *           PATCH /api/v2/admin/organizations/:id/deactivate
+ *           PATCH /api/v2/admin/organizations/:id/deactivate,
+ *           GET /api/v2/admin/organizations/:id
  * FORBIDDEN: All other Core endpoints
  */
 
@@ -17,6 +18,7 @@ const ALLOWED_CORE_ENDPOINTS = [
   'PATCH /api/v2/admin/organizations/:id/suspend',
   'PATCH /api/v2/admin/organizations/:id/unsuspend',
   'PATCH /api/v2/admin/organizations/:id/deactivate',
+  'GET /api/v2/admin/organizations/:id',
 ] as const;
 
 export type AllowedCoreEndpoint = typeof ALLOWED_CORE_ENDPOINTS[number];

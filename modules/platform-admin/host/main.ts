@@ -1,5 +1,6 @@
 import { NestFactory } from '@nestjs/core';
 import { Logger } from '@nestjs/common';
+import { ExpressAdapter } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { join } from 'path';
 import * as express from 'express';
@@ -40,7 +41,7 @@ async function bootstrap() {
   console.log('[STARTUP] Phase 1: Creating NestJS application...');
   let app: any;
   try {
-    app = await NestFactory.create(AppModule, expressApp, {
+    app = await NestFactory.create(AppModule, new ExpressAdapter(expressApp), {
       logger: ['error', 'warn', 'log'],
     });
     console.log('[STARTUP] Phase 1: NestFactory.create complete');

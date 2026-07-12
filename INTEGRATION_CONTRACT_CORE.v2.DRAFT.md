@@ -33,7 +33,7 @@ The v1 contract (root copy 2026-01-26 + governance copy 2026-02-06) asserted:
 
 **Code verification on 2026-07-11 proved all of the above OBSOLETE:**
 1. `core.client.ts` already calls `POST /api/v2/admin/organizations` and `PATCH /api/v2/admin/organizations/:id/{suspend,unsuspend,deactivate}`. These **work** because Core `AdminController` guards them with `AdminJwtAuthGuard` (`AdminJwtStrategy`), verifying S2S RS256 tokens via `ADMIN_JWKS_URL` / `ADMIN_JWT_PUBLIC_KEY`. → **v2 + S2S ARE available.**
-2. **Bug found (HISTORICAL — RESOLVED 2026-07-12, see §15)**: the org-mapping flow (`POST /api/platform-admin/org-mappings`) minted an S2S token, then `validateOrganizationExists()` forwarded that S2S token to Core `GET /api/v1/organizations/:id`, guarded by `JwtAuthGuard` + `TenantGuard` (requires a USER JWT with `organizationId`). The S2S token has no `orgId` → rejected (401/404). Result: platform-admin org-linking was **broken (fail-closed)** at the time of writing. **Re-verification of the current code (2026-07-12) confirmed the fix is in place**: `validateOrganizationExists()` now calls the correct `GET /api/v2/admin/organizations/:id` (core.client.ts L71/L78) and forwards the S2S token; the allowlist permits it (core.contract.assert.ts L21). The real production blocker was **infrastructure** (missing `ADMIN_JWT_PUBLIC_KEY` + Cloudflare 1010), not this code path — resolved in §15.
+2. **Bug found (HISTORICAL — RESOLVED 2026-07-12, see canonical §15)**: the org-mapping flow (`POST /api/platform-admin/org-mappings`) minted an S2S token, then `validateOrganizationExists()` forwarded that S2S token to Core `GET /api/v1/organizations/:id`, guarded by `JwtAuthGuard` + `TenantGuard` (requires a USER JWT with `organizationId`). The S2S token has no `orgId` → rejected (401/404). Result: platform-admin org-linking was **broken (fail-closed)** at the time of writing. Re-verification of current code (2026-07-12) confirmed `validateOrganizationExists()` now calls the correct `GET /api/v2/admin/organizations/:id` (core.client.ts L71/L78); the allowlist permits it (core.contract.assert.ts L21). The real production blocker was infrastructure (missing `ADMIN_JWT_PUBLIC_KEY` + Cloudflare 1010) — resolved; see canonical contract §15.
 3. Two contract copies existed (`suite-shavi/INTEGRATION_CONTRACT_CORE.md` and `modules/platform-admin/governance/contracts/INTEGRATION_CONTRACT_CORE.md`) and had both drifted from the code.
 
 ### What changed in v2
@@ -201,7 +201,7 @@ Contract is ACTIVE/BINDING when ALL true:
 | Org lifecycle — unsuspend | PATCH | `/api/v2/admin/organizations/:id/unsuspend`   | S2S  | Unsuspend org                            |
 | Org lifecycle — deactivate | PATCH | `/api/v2/admin/organizations/:id/deactivate`  | S2S  | Deactivate org                           |
 
-> **CRITICAL**: Platform-admin validation MUST use `GET /api/v2/admin/organizations/:id` (S2S). The tenant endpoint `GET /api/v1/organizations/:id` MUST NOT be used for platform-admin validation — it requires a user JWT with `orgId` and would reject the S2S token (the bug described in §0, resolved 2026-07-12 — current code already uses the v2/admin endpoint per §15).
+> **CRITICAL**: Platform-admin validation MUST use `GET /api/v2/admin/organizations/:id` (S2S). The tenant endpoint `GET /api/v1/organizations/:id` MUST NOT be used for platform-admin validation — it requires a user JWT with `orgId` and would reject the S2S token (the bug described in §0, resolved 2026-07-12 — current code already uses the v2/admin endpoint per canonical §15).
 
 ---
 
@@ -216,17 +216,3 @@ Contract is ACTIVE/BINDING when ALL true:
 - **Approved By**: Governance Authority (Eslam Abdelshafi)
 - **Date**: 2026-07-11
 - **Status**: ACTIVE — BINDING INTEGRATION CONTRACT
-
-## 15) Amendment Record — Infrastructure Fix (2026-07-12)
-
-**Author**: Hermes Agent (Shavi autonomous engineer). **Approved by**: Governance Authority (Eslam Abdelshafi).
-
-The §0 narrative documents an org-mapping **code bug**. Re-verification of the **current** code (2026-07-12) proved it is **already resolved** — `validateOrganizationExists()` (core.client.ts L71/L78) correctly calls `GET /api/v2/admin/organizations/:id` and forwards the S2S token; the allowlist permits it (core.contract.assert.ts L21); bassan-core `AdminController.getOrganization()` exists and is `AdminJwtAuthGuard`-protected (admin.controller.ts L35/L81).
-
-The real production outage was **infrastructure**, now fixed:
-1. **bassan-core startup crash** — `ADMIN_JWT_PUBLIC_KEY` was unset. Fixed: set the PEM (derived from JWKS `kid=admin-key-3`) on the **Production** Coolify app `b8c7zymvxxcm2srwplhq20uf`; emptied `ADMIN_JWKS_URL`; restarted deployment `iqtbjh3rxah7y48exowjfy7n` (finished OK).
-2. **Cloudflare Bot Fight Mode (HTTP 1010)** blocked automated JWKS/login. Fixed: Bot Fight Mode confirmed OFF (JWKS + shavi-suite login return 200 / non-1010 from a `curl` UA). bassan-core now verifies locally from the PEM, so it is immune regardless.
-
-**Verification**: bassan-core up; `GET /api/v2/admin/organizations/:id` (no token) → 401 (guard active, PEM loaded); JWKS → 200. Full record: `docs/runbooks/S2S_INFRA_FIX_RUNBOOK.md`.
-
-**Conclusion**: Suite ↔ Core S2S integration is correct in code and operational in production as of 2026-07-12. No code change was required for org-mapping. This is amendment v2.1 of the binding contract.

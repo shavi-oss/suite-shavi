@@ -38,10 +38,12 @@ import { AuthController } from './src/auth/auth.controller';
 import { SessionService } from './src/auth/session.service';
 import { SessionGuard } from './src/auth/session.guard';
 import { AuthService } from './src/auth/auth.service';
+import { CustomerModule } from './src/customer/customer.module';
 
 @Module({
   imports: [
     PrismaModule,
+    CustomerModule,
   ],
   controllers: [
     HealthController,

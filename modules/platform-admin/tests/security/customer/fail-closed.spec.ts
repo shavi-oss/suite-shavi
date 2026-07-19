@@ -5,7 +5,9 @@
  */
 import { CustomerSessionService } from '../../../src/customer/auth/customer-session.service';
 import { CustomerSessionGuard } from '../../../src/customer/auth/customer-session.guard';
-import { UnauthorizedException } from '@nestjs/common';
+import { UnauthorizedException, ArgumentsHost, Logger } from '@nestjs/common';
+import { CustomerAllExceptionsFilter } from '../../../src/customer/errors/customer-all-exceptions.filter';
+import { CustomerKernelException } from '../../../src/customer/errors/customer-kernel.exception';
 
 function fakeBroker(token: string) {
   return { loginUser: async () => token } as any;
@@ -53,5 +55,55 @@ describe('Customer Gateway - Fail-Closed Security Gate', () => {
     const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN));
     const guard = new CustomerSessionGuard(svc);
     expect(() => guard.canActivate(makeCtx({ headers: { authorization: 'Bearer x.y.z' } }))).toThrow(UnauthorizedException);
+  });
+});
+
+// ── ADR-016 D3: standardized error envelope (extends the fail-closed gate) ──────
+// Every customer controller error must serialize into the §4.1 envelope, and the
+// envelope + its log line MUST NOT leak the Core token / PII / stack.
+function runEnvelope(exception: unknown): { body: any; logged: string } {
+  const res: any = {
+    statusCode: 0,
+    body: null,
+    status(c: number) { this.statusCode = c; return this; },
+    json(b: any) { this.body = b; return this; },
+  };
+  const host: ArgumentsHost = {
+    switchToHttp: () => ({
+      getResponse: () => res,
+      getRequest: () => ({ method: 'POST', url: '/api/customer/v1/auth/session' }),
+    }),
+  } as any;
+  const errSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
+  new CustomerAllExceptionsFilter().catch(exception, host);
+  const logged = errSpy.mock.calls.map((c) => JSON.stringify(c[0])).join('|');
+  errSpy.mockRestore();
+  return { body: res.body, logged };
+}
+
+describe('Customer Gateway - Standardized error envelope (ADR-016 D3)', () => {
+  it('a guard-denied session produces the CUSTOMER_UNAUTHORIZED envelope (no Core token leak)', () => {
+    const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN));
+    const guard = new CustomerSessionGuard(svc);
+    let thrown: UnauthorizedException | null = null;
+    try {
+      guard.canActivate(makeCtx({ headers: { authorization: 'Bearer x.y.z' } }));
+    } catch (e) {
+      thrown = e as UnauthorizedException;
+    }
+    expect(thrown).toBeInstanceOf(UnauthorizedException);
+    const { body, logged } = runEnvelope(thrown!);
+    expect(body.error.code).toBe('CUSTOMER_UNAUTHORIZED');
+    expect(body.error.requestId).toMatch(/^c-[0-9a-f-]+$/);
+    expect(JSON.stringify(body)).not.toContain(CORE_TOKEN);
+    expect(logged).not.toContain(CORE_TOKEN);
+  });
+
+  it('a Kernel broker failure produces CUSTOMER_KERNEL_ERROR (502) with a generic body', () => {
+    const { body, logged } = runEnvelope(new CustomerKernelException('login-network'));
+    expect(body.error.code).toBe('CUSTOMER_KERNEL_ERROR');
+    expect(body.error.message).toBe('Upstream service unavailable');
+    expect(JSON.stringify(body)).not.toContain(CORE_TOKEN);
+    expect(logged).not.toContain(CORE_TOKEN);
   });
 });

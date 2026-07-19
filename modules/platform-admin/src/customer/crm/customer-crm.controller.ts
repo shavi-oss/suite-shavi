@@ -1,9 +1,20 @@
-import { Body, Controller, Get, Post, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UseFilters,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { ExplicitAllow } from '../../../guards/explicit-allow.guard';
 import { CustomerSessionGuard } from '../auth/customer-session.guard';
 import { CrmScopeGuard, RequireCrmScope } from '../auth/bassan-crm/crm-scope.guard';
 import { CustomerCrmService } from './customer-crm.service';
 import { CreateContactDto } from './dto/create-contact.dto';
+import { CustomerAllExceptionsFilter } from '../errors/customer-all-exceptions.filter';
 
 /**
  * Customer CRM Controller — /api/customer/v1/crm/contacts
@@ -14,8 +25,20 @@ import { CreateContactDto } from './dto/create-contact.dto';
  * via @RequireCrmScope + CrmScopeGuard (Bassan is sole authority; SHAVI stores no
  * local crm.* permission rows). crm.tasks:* permissions are reserved for future
  * task endpoints and use the same guard/decorator.
+ *
+ * Error envelope + DTO validation (ADR-016 D3): @UseFilters scopes the CUSTOMER_*
+ * envelope to this controller; @UsePipes validates CreateContactDto (whitelist+
+ * transform+forbidNonWhitelisted). Scoped, not app-wide (see auth controller note).
  */
 @Controller('api/customer/v1/crm')
+@UseFilters(CustomerAllExceptionsFilter)
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    forbidNonWhitelisted: true,
+  }),
+)
 export class CustomerCrmController {
   constructor(private readonly crm: CustomerCrmService) {}
 

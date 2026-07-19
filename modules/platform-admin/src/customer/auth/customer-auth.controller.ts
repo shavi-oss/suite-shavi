@@ -3,13 +3,17 @@ import {
   Controller,
   Post,
   Req,
+  UseFilters,
   UseGuards,
+  UsePipes,
+  ValidationPipe,
 } from '@nestjs/common';
 import { ExplicitAllow } from '../../../guards/explicit-allow.guard';
 import { CustomerSessionGuard } from '../auth/customer-session.guard';
 import { CustomerSessionService } from '../auth/customer-session.service';
 import { LoginDto } from '../auth/dto/login.dto';
 import { SessionResponseDto } from '../auth/dto/session-response.dto';
+import { CustomerAllExceptionsFilter } from '../errors/customer-all-exceptions.filter';
 
 /**
  * Customer Auth Controller — /api/customer/v1/auth/*
@@ -19,8 +23,25 @@ import { SessionResponseDto } from '../auth/dto/session-response.dto';
  *  - POST /logout   -> protected (Session) -> invalidates session
  *
  * All routes are opted-in via @ExplicitAllow() (global DenyAllGuard fail-closed).
+ *
+ * Error envelope + DTO validation (ADR-016 D3):
+ *  - @UseFilters scopes the standardized CUSTOMER_* error envelope to this controller
+ *    only (not app-wide) so other Suite modules keep their existing error format.
+ *  - @UsePipes applies the ValidationPipe (whitelist+transform+forbidNonWhitelisted)
+ *    to this controller's request bodies. Scoped here (not app-wide) because other
+ *    Suite controllers use DTOs that are not yet class-validator decorated; making
+ *    this global would whitelist-strip their fields.
  */
 @Controller('api/customer/v1/auth')
+@UseFilters(CustomerAllExceptionsFilter)
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    // class-validator 0.14 option name for the spec's `forbidUnknownValues`.
+    forbidNonWhitelisted: true,
+  }),
+)
 export class CustomerAuthController {
   constructor(private readonly session: CustomerSessionService) {}
 

@@ -1,6 +1,6 @@
 import { Logger } from '@nestjs/common';
 import { CustomerKernelBrokerService } from '../../../../src/customer/kernel/customer-kernel-broker.service';
-import { CustomerKernelException } from '../../../../src/customer/kernel/customer-kernel.exception';
+import { CustomerKernelException } from '../../../../src/customer/errors/customer-kernel.exception';
 import { UnauthorizedException } from '@nestjs/common';
 import * as coreAssert from '../../../../src/core-adapter/core.contract.assert';
 

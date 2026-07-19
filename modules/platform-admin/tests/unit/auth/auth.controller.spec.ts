@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { AuthController } from '../../../src/auth/auth.controller';
 import { SessionService } from '../../../src/auth/session.service';
+import { AuthService } from '../../../src/auth/auth.service';
+import { InternalUserService } from '../../../src/internal-users/internal-user.service';
 import { UnauthorizedException } from '@nestjs/common';
 
 type Response = any;
@@ -13,7 +15,17 @@ describe('AuthController', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [AuthController],
-      providers: [SessionService],
+      providers: [
+        SessionService,
+        {
+          provide: AuthService,
+          useValue: { validateCredentials: jest.fn().mockReturnValue('test-user') },
+        },
+        {
+          provide: InternalUserService,
+          useValue: {},
+        },
+      ],
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
@@ -25,13 +37,13 @@ describe('AuthController', () => {
   });
 
   describe('login', () => {
-    it('should create session and set httpOnly cookie', () => {
+    it('should create session and set httpOnly cookie', async () => {
       const loginDto = { email: 'test@example.com', password: 'password' };
       const mockResponse = {
         cookie: jest.fn(),
       } as unknown as Response;
 
-      const result = controller.login(loginDto, mockResponse);
+      const result = await controller.login(loginDto, mockResponse);
 
       expect(result).toEqual({ message: 'Login successful' });
       expect(mockResponse.cookie).toHaveBeenCalledWith(
@@ -46,7 +58,7 @@ describe('AuthController', () => {
       );
     });
 
-    it('should set secure cookie in production', () => {
+    it('should set secure cookie in production', async () => {
       const originalEnv = process.env.NODE_ENV;
       process.env.NODE_ENV = 'production';
 
@@ -55,7 +67,7 @@ describe('AuthController', () => {
         cookie: jest.fn(),
       } as unknown as Response;
 
-      controller.login(loginDto, mockResponse);
+      await controller.login(loginDto, mockResponse);
 
       expect(mockResponse.cookie).toHaveBeenCalledWith(
         'sessionId',

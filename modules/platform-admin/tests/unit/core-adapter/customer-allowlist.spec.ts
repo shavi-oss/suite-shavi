@@ -31,8 +31,10 @@ describe('Customer Core Allowlist (subset in core.contract.assert)', () => {
     expect(() => assertCustomerEndpointAllowed('GET', '/api/v1/workflows')).toThrow(/STOP/);
   });
 
-  it('keeps the admin (CoreClient) allowlist unchanged at 6 entries', () => {
-    expect(getAllowedCoreEndpoints()).toHaveLength(6);
+  it('admin (CoreClient) allowlist is 7 entries incl. §16 central audit endpoint', () => {
+    const allowed = getAllowedCoreEndpoints();
+    expect(allowed).toHaveLength(7);
+    expect(allowed).toContain('POST /api/v2/admin/audit/events');
   });
 
   it('exposes exactly the 2 customer-scoped endpoints', () => {

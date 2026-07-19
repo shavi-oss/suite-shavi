@@ -1,6 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { InternalUserController } from '../../../src/internal-users/internal-user.controller';
 import { InternalUserService } from '../../../src/internal-users/internal-user.service';
+import { SessionGuard } from '../../../src/auth/session.guard';
+import { RbacGuard } from '../../../src/security/rbac.guard';
 import { UserStatus } from '@prisma/client';
 
 describe('InternalUserController', () => {
@@ -21,7 +23,12 @@ describe('InternalUserController', () => {
           },
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(SessionGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(RbacGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = module.get<InternalUserController>(InternalUserController);
     service = module.get<InternalUserService>(InternalUserService);
@@ -36,6 +43,7 @@ describe('InternalUserController', () => {
         name: 'Test User',
         role: 'platform_admin' as any,
         status: 'active' as any,
+        inviteStatus: 'active' as any,
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',
@@ -62,6 +70,7 @@ describe('InternalUserController', () => {
         name: 'Test User',
         role: 'platform_admin' as any,
         status: 'active' as any,
+        inviteStatus: 'active' as any,
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',
@@ -93,6 +102,7 @@ describe('InternalUserController', () => {
           name: 'User 1',
           role: 'platform_admin' as any,
           status: 'active' as any,
+          inviteStatus: 'active' as any,
           createdAt: new Date(),
           updatedAt: new Date(),
           createdBy: 'creator-1',
@@ -103,6 +113,7 @@ describe('InternalUserController', () => {
           name: 'User 2',
           role: 'viewer' as any,
           status: 'active' as any,
+          inviteStatus: 'active' as any,
           createdAt: new Date(),
           updatedAt: new Date(),
           createdBy: 'creator-1',
@@ -126,6 +137,7 @@ describe('InternalUserController', () => {
         name: 'Test User',
         role: 'platform_admin' as any,
         status: 'active' as any,
+        inviteStatus: 'active' as any,
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',
@@ -148,6 +160,7 @@ describe('InternalUserController', () => {
         name: 'Test User',
         role: 'platform_admin' as any,
         status: 'deactivated' as any,
+        inviteStatus: 'active' as any,
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',
@@ -173,6 +186,7 @@ describe('InternalUserController', () => {
         name: 'Test User',
         role: 'platform_admin' as any,
         status: 'deactivated' as any,
+        inviteStatus: 'active' as any,
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',

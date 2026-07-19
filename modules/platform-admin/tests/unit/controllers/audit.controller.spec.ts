@@ -2,6 +2,8 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { BadRequestException } from '@nestjs/common';
 import { AuditController } from '../../../src/audit/audit.controller';
 import { AuditService } from '../../../src/audit/audit.service';
+import { SessionGuard } from '../../../src/auth/session.guard';
+import { RbacGuard } from '../../../src/security/rbac.guard';
 import { EntityType, ActionType, ResultType } from '@prisma/client';
 
 describe('AuditController — Fail-Closed Enforcement', () => {
@@ -21,7 +23,12 @@ describe('AuditController — Fail-Closed Enforcement', () => {
           useValue: mockAuditService,
         },
       ],
-    }).compile();
+    })
+      .overrideGuard(SessionGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .overrideGuard(RbacGuard)
+      .useValue({ canActivate: jest.fn(() => true) })
+      .compile();
 
     controller = module.get<AuditController>(AuditController);
     auditService = module.get<AuditService>(AuditService);

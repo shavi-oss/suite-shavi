@@ -1,4 +1,6 @@
 import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
+import { assertCustomerEndpointAllowed } from '../../core-adapter/core.contract.assert';
+import { CustomerKernelException } from './customer-kernel.exception';
 
 /**
  * CustomerKernelBrokerService — the ONLY component that calls Core on behalf of a
@@ -12,26 +14,11 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
  * Security (Contract B Stop Rules / ARCHITECTURAL_LAWS LAW-5):
  *  - NEVER log the Core token (or any token) — not even partially.
  *  - NEVER return the Core token to the client.
- *  - Runtime-assert that only customer-authorized endpoints are called.
+ *  - Runtime-assert EVERY Core call through the CANONICAL customer allowlist in
+ *    core.contract.assert.ts (ADR-016 D4 — single source of truth, no private copy).
+ *  - Kernel failures throw the typed CustomerKernelException (502) so the global error
+ *    filter maps them to CUSTOMER_KERNEL_ERROR with a generic message (no leak).
  */
-
-const CUSTOMER_ALLOWED_ENDPOINTS: Array<{ method: string; pattern: RegExp }> = [
-  { method: 'POST', pattern: /^\/api\/v1\/auth\/login$/ },
-  { method: 'GET', pattern: /^\/api\/v1\/organizations\/[^/]+$/ },
-];
-
-function assertCustomerEndpointAllowed(method: string, path: string): void {
-  const ok = CUSTOMER_ALLOWED_ENDPOINTS.some(
-    (e) => e.method === method && e.pattern.test(path),
-  );
-  if (!ok) {
-    throw new Error(`STOP: Core endpoint not authorized for customer broker: ${method} ${path}`);
-  }
-}
-
-function redact(): { errorCode: string } {
-  return { errorCode: 'CUSTOMER_KERNEL_FAILED' };
-}
 
 @Injectable()
 export class CustomerKernelBrokerService {
@@ -46,6 +33,8 @@ export class CustomerKernelBrokerService {
   }
 
   async loginUser(email: string, password: string): Promise<string> {
+    // RUNTIME CONTRACT ASSERTION — canonical customer allowlist (ADR-016 D4).
+    // No private copy: if this endpoint ever leaves the allowlist, the call is blocked here.
     assertCustomerEndpointAllowed('POST', '/api/v1/auth/login');
     const correlationId = `cust-${Date.now()}`;
     const url = `${this.coreBaseUrl}/api/v1/auth/login`;
@@ -65,7 +54,7 @@ export class CustomerKernelBrokerService {
         const data = (await res.json()) as any;
         const token = data?.accessToken;
         if (!token) {
-          throw new Error('Core login returned no accessToken');
+          throw new CustomerKernelException('Core login returned no access token');
         }
         // SAFE: no token in log
         this.logger.log({
@@ -92,16 +81,22 @@ export class CustomerKernelBrokerService {
         email,
         status: res.status,
       });
-      throw new Error(`Core login error: ${res.status}`);
+      throw new CustomerKernelException(`Core login error: ${res.status}`);
     } catch (error) {
-      if (error instanceof UnauthorizedException) throw error;
+      if (
+        error instanceof UnauthorizedException ||
+        error instanceof CustomerKernelException
+      ) {
+        throw error;
+      }
+      // Network / timeout — typed so the filter returns a generic 502 (no leak).
       this.logger.error({
         message: 'Customer kernel login network error',
         correlationId,
         email,
-        errorCode: redact().errorCode,
+        errorCode: 'CUSTOMER_KERNEL_ERROR',
       });
-      throw new Error('Core login network error');
+      throw new CustomerKernelException('Core login network error');
     }
   }
 }

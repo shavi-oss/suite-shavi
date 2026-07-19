@@ -4,7 +4,12 @@ import { BASSAN_CRM_KEY_PROVIDER, BassanKeyProvider } from './bassan-key-provide
 import { BassanCrmClaims, CRM_AUDIENCE } from './crm-claims';
 
 export interface BassanCrmVerifierConfig {
-  /** Expected `iss`. If unset, issuer is not enforced. */
+  /**
+   * Expected `iss` (Bassan token issuer). REQUIRED for zero-trust delegation
+   * (ADR-013 Authorization Boundary): the issuer MUST be pinned. If neither
+   * `config.issuer` nor `BASSAN_CRM_ISSUER` is set, verification fails closed —
+   * every token is rejected rather than trusting an unpinned issuer.
+   */
   issuer?: string;
   /** Expected `aud` (default urn:shavi:crm). */
   audience: string;
@@ -59,7 +64,13 @@ export class BassanCrmJwtVerifier {
       throw new UnauthorizedException('malformed Bassan CRM token payload');
     }
 
-    if (this.issuer && claims.iss !== this.issuer) {
+    // Zero-trust (ADR-013): the issuer MUST be pinned. Fail-closed when no
+    // issuer is configured — refusing to trust an unpinned issuer is safer than
+    // silently accepting any `iss` (which would let a malicious issuer mint tokens).
+    if (!this.issuer) {
+      throw new UnauthorizedException('Bassan CRM issuer not pinned (set BASSAN_CRM_ISSUER)');
+    }
+    if (claims.iss !== this.issuer) {
       throw new UnauthorizedException('unexpected Bassan CRM token issuer');
     }
 

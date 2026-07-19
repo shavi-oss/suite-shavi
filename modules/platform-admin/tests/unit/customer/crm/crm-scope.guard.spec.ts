@@ -2,6 +2,7 @@ import { generateKeyPairSync, createSign } from 'crypto';
 import { Reflector } from '@nestjs/core';
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { CrmScopeGuard, RequireCrmScope } from '../../../../src/customer/auth/bassan-crm/crm-scope.guard';
+import { BassanCrmAuditSink } from '../../../../src/customer/auth/bassan-crm/bassan-crm-audit';
 import { BassanCrmJwtVerifier } from '../../../../src/customer/auth/bassan-crm/bassan-crm-jwt-verifier';
 import { StaticBassanKeyProvider } from '../../../../src/customer/auth/bassan-crm/bassan-key-provider';
 
@@ -59,7 +60,9 @@ describe('CrmScopeGuard — G-SEC-2 (2/3) verify+enforce Bassan crm.* claims', (
       new StaticBassanKeyProvider(pair.publicKey),
       { issuer: ISS, audience: AUD },
     );
-    guard = new CrmScopeGuard(new Reflector(), verifier);
+    // Mock audit sink (no-op) — audit emission is covered by dedicated specs.
+    const audit = { emitCrmDecision: jest.fn().mockResolvedValue(undefined) } as unknown as BassanCrmAuditSink;
+    guard = new CrmScopeGuard(new Reflector(), verifier, audit);
   });
 
   const token = (overrides: Record<string, unknown> = {}) =>

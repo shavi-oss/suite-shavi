@@ -10,6 +10,8 @@ import { CustomerPrismaService } from './prisma/customer.prisma.service';
 import { CustomerKernelBrokerService } from './kernel/customer-kernel-broker.service';
 import { BassanCrmJwtVerifier } from './auth/bassan-crm/bassan-crm-jwt-verifier';
 import { CrmScopeGuard } from './auth/bassan-crm/crm-scope.guard';
+import { BassanCrmAuditSink } from './auth/bassan-crm/bassan-crm-audit';
+import { S2sTokenService } from '../auth/s2s-token.service';
 import { BASSAN_CRM_KEY_PROVIDER, EnvBassanKeyProvider } from './auth/bassan-crm/bassan-key-provider';
 
 /**
@@ -30,6 +32,9 @@ import { BASSAN_CRM_KEY_PROVIDER, EnvBassanKeyProvider } from './auth/bassan-crm
     { provide: BASSAN_CRM_KEY_PROVIDER, useClass: EnvBassanKeyProvider },
     BassanCrmJwtVerifier,
     CrmScopeGuard,
+    // Contract A §16: central audit sink for crm.* decisions + shared S2S minting.
+    S2sTokenService,
+    BassanCrmAuditSink,
   ],
   exports: [CustomerSessionService],
 })

@@ -8,7 +8,9 @@
  *           PATCH /api/v2/admin/organizations/:id/suspend,
  *           PATCH /api/v2/admin/organizations/:id/unsuspend,
  *           PATCH /api/v2/admin/organizations/:id/deactivate,
- *           GET /api/v2/admin/organizations/:id
+ *           GET /api/v2/admin/organizations/:id,
+ *           POST /api/v2/admin/audit/events
+ *             (Contract A §16 — Suite→Kernel central audit emission for crm.* decisions)
  *
  * CUSTOMER BROKER SUBSET (ADR-016 D4 — user-scoped, Suite acts on behalf of a
  * Workspace user; the Core token is held server-side and never exposed):
@@ -25,6 +27,7 @@ const ALLOWED_CORE_ENDPOINTS = [
   'PATCH /api/v2/admin/organizations/:id/unsuspend',
   'PATCH /api/v2/admin/organizations/:id/deactivate',
   'GET /api/v2/admin/organizations/:id',
+  'POST /api/v2/admin/audit/events',
 ] as const;
 
 export type AllowedCoreEndpoint = typeof ALLOWED_CORE_ENDPOINTS[number];

@@ -1,6 +1,6 @@
-# Suite — INTEGRATION_CONTRACT_CORE (v2 — APPROVED)
+# Suite — INTEGRATION_CONTRACT_CORE (v3 — APPROVED)
 
-> **ACTIVE — BINDING INTEGRATION CONTRACT.** Supersedes v1 (root 2026-01-26 + 2026-02-06 governance copy).
+> **ACTIVE — BINDING INTEGRATION CONTRACT (v3, ratified 2026-07-19).** Supersedes v2 (2026-07-11 APPROVED) and v1 (root 2026-01-26 + 2026-02-06 governance copy).
 > Written by Hermes Agent after code verification on 2026-07-11. Approved by Governance Authority on 2026-07-11.
 
 ## Document Control
@@ -9,7 +9,7 @@
 | -------------- | ------------------------------------------------ |
 | Document Title | INTEGRATION_CONTRACT_CORE                        |
 | Repo           | Suite (Layer / Product Repo)                     |
-| Version        | **v2 (APPROVED)**                                |
+| Version        | **v3 (APPROVED)**                                |
 | Status         | ACTIVE — BINDING INTEGRATION CONTRACT            |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST          |
 | Authority      | Governance Authority (Layer)                     |
@@ -200,6 +200,7 @@ Contract is ACTIVE/BINDING when ALL true:
 | Org lifecycle — suspend  | PATCH  | `/api/v2/admin/organizations/:id/suspend`     | S2S  | Suspend org                              |
 | Org lifecycle — unsuspend | PATCH | `/api/v2/admin/organizations/:id/unsuspend`   | S2S  | Unsuspend org                            |
 | Org lifecycle — deactivate | PATCH | `/api/v2/admin/organizations/:id/deactivate`  | S2S  | Deactivate org                           |
+| **Audit event emit (NEW — v3)** | POST | `/api/v2/admin/audit/events`              | S2S  | Emit Suite→Kernel audit event (crm.* auth decisions) — **ratified 2026-07-19 (see §16)** |
 
 > **CRITICAL**: Platform-admin validation MUST use `GET /api/v2/admin/organizations/:id` (S2S). The tenant endpoint `GET /api/v1/organizations/:id` MUST NOT be used for platform-admin validation — it requires a user JWT with `orgId` and would reject the S2S token (the bug described in §0, resolved 2026-07-12 — current code already uses the v2/admin endpoint per §15).
 
@@ -209,6 +210,7 @@ Contract is ACTIVE/BINDING when ALL true:
 - **Canonical file**: `suite-shavi/INTEGRATION_CONTRACT_CORE.md` (this v2 content).
 - The duplicate at `modules/platform-admin/governance/contracts/INTEGRATION_CONTRACT_CORE.md` is **DEPRECATED** — MUST be removed or replaced by a pointer to the canonical file to prevent future drift.
 - All changes go through the canonical file + version bump + Governance approval.
+> **APPROVED ADDENDUM (ratified 2026-07-19 by Governance Authority):** §16 defines the **Suite → Kernel central audit emission contract** for `crm.*` authorization decisions (G-SEC-2, gate `t_9d8689f9` criterion 4). Ratified as proposed; Contract A bumped to **v3 (APPROVED)**. The `POST /api/v2/admin/audit/events` row above is now binding.
 
 ---
 
@@ -230,3 +232,114 @@ The real production outage was **infrastructure**, now fixed:
 **Verification**: bassan-core up; `GET /api/v2/admin/organizations/:id` (no token) → 401 (guard active, PEM loaded); JWKS → 200. Full record: `docs/runbooks/S2S_INFRA_FIX_RUNBOOK.md`.
 
 **Conclusion**: Suite ↔ Core S2S integration is correct in code and operational in production as of 2026-07-12. No code change was required for org-mapping. This is amendment v2.1 of the binding contract.
+
+---
+
+## 16) Audit Emission Contract (Suite → Kernel central audit) — APPROVED (ratified 2026-07-19, v3)
+
+> ✅ **STATUS: APPROVED (v3).** Ratified by the Governance Authority (Founder) on 2026-07-19. This section is now **BINDING** as Contract A v3. Deliverable of kanban **t_c94bd2c1** (G-SEC-2, security gate **t_9d8689f9** criterion 4). Backend (t_7cc0bbe7) may now wire `CrmScopeGuard` to the central audit sink per this contract.
+> Source: SHAVI `CrmScopeGuard` (`modules/platform-admin/src/customer/auth/bassan-crm/crm-scope.guard.ts`) currently emits NO audit — by design, until this contract lands. Remediation **t_bd05896c** explicitly forbids faking central audit with the SHAVI-local `AuditService` (`modules/platform-admin/src/audit/*`).
+
+### 16.1 Purpose
+Every `crm.*` authorization decision made by SHAVI `CrmScopeGuard` — **allow / 403 deny / Admin scope-bypass** — MUST be emitted as an immutable audit event to **Bassan Kernel central audit** (the Kernel-owned audit sink, "black box" per §6.2 / `INTEGRATION_CONTRACT_WORKSPACE.md` §6.2). It MUST NOT be emitted to the SHAVI-local `AuditService`. This closes G-SEC-2 gate `t_9d8689f9` criterion 4.
+
+### 16.2 Transport — RATIFIED: (a) HTTPS/S2S POST
+- **Transport**: `HTTPS POST` to a new Core endpoint **`POST /api/v2/admin/audit/events`**.
+- **Why not Kafka / event-bus (option b)**: No Kafka/topic/event-bus infrastructure exists in Suite↔Kernel today (verified: no producer, no bus; existing Kernel calls use native `fetch()`). Reusing the proven `fetch()` S2S broker (`CoreClient`, Contract A §5.2) is the only option that adds **zero new dependencies** and mirrors the org-admin pattern.
+- **Implementation**: native `fetch()` (Node 18+ built-in). **NO new npm dependency** (Node `crypto` only, same as `SessionGuard`).
+- **Headers** (identical to `CoreClient`):
+  - `Authorization: Bearer <token>``
+  - `X-Correlation-Id: ${correlationId}`
+  - `Content-Type: application/json`
+- **Timeout**: fire-and-forget, `AbortSignal.timeout(10000)` (10s) — per Contract A §7 GET cap; MUST NOT exceed the auth-path budget.
+- **Allowlist**: backend MUST add `'POST /api/v2/admin/audit/events'` to `core.contract.assert.ts` `ALLOWED_CORE_ENDPOINTS` so the runtime drift assertion enforces it (mirrors §0 fix).
+
+### 16.3 Auth — S2S RS256 (reuse Model B)
+- The audit sink mints a **Suite S2S JWT** using the EXISTING `PLATFORM_ADMIN_JWT_PRIVATE_KEY_PEM_B64` (the same key Suite uses for all Kernel S2S), with claims identical to `SessionGuard.mintAdminJwt`:
+  - `sub`: a dedicated **service identity**, e.g. `shavi-audit-sink` (NOT an operator id; a fixed emitter principal).
+  - `type: 's2s'`, `jti` (replay defense), `iat`, `exp` (TTL 300s).
+  - `kid`: `PLATFORM_ADMIN_JWT_KID`.
+- Verified by Core `AdminJwtAuthGuard` (`AdminJwtStrategy`) via `ADMIN_JWKS_URL` / `ADMIN_JWT_PUBLIC_KEY` — the **SAME verification path** as every other §12 S2S call.
+- **MUST NOT** use the incoming Bassan `crm.*` JWT, the Workspace session, or any user token to authenticate the emit. This is an outbound S2S call from the Suite, not a user action; `actor.subject` (the audited party) is carried in the **payload** (§16.4), not as the outbound auth identity.
+- Minting MUST reuse `SessionGuard.mintAdminJwt` logic (extract to a shared `S2sTokenService`, or a thin copy) — **NO new key material, NO new dependency**.
+
+### 16.4 Payload Schema (crm.* decision event)
+`POST /api/v2/admin/audit/events` request body (JSON). **All fields NON-PII.** The Bassan `crm.*` token `sub` is an opaque identifier, not SHAVI PII; even so, only the opaque `sub` and org id may be carried — **NEVER** email / name / phone / address.
+
+```json
+{
+  "eventType": "authorization.decision",
+  "domain": "crm",
+  "decision": "allow" | "deny_403" | "admin_bypass",
+  "outcome": "allowed" | "forbidden" | "unauthorized" | "bypass_granted",
+  "requiredPermission": "crm.leads:read",
+  "granted": true,
+  "source": "shavi:crm-scope-guard",
+  "policyVersion": "core-audit-emission-v1",
+  "correlationId": "<X-Correlation-Id>",
+  "actor": {
+    "subject": "<bassan crm token sub — opaque id only>",
+    "orgId": "<tenant organizationId if derivable — opaque id only>",
+    "isAdminBypass": false
+  },
+  "resource": "POST /api/customer/v1/crm/contacts",
+  "emittedAt": "2026-07-19T12:00:00.000Z",
+  "metadata": {
+    "rule": "CRM_SCOPE_MISSING | CRM_TOKEN_MISSING | CRM_SCOPE_DENIED | CRM_ADMIN_BYPASS",
+    "bypassReason": "crm-admin-superuser-parity"
+  }
+}
+```
+
+Field notes:
+- `decision` = normalized verdict (`allow` / `deny_403` / `admin_bypass`); `outcome` = resulting HTTP state. Both sent for clarity (Kernel MAY collapse to one).
+- `requiredPermission` uses the **ratified colon form** (`crm.leads:read`, `crm.leads:write`, `crm.tasks:read`, `crm.tasks:write`) — see `crm-claims.ts` `CrmPermission`. The `crm.*` shorthand in the task maps to the `crm.leads` / `crm.tasks` × `read` / `write` namespace.
+- `admin_bypass` = the `CrmScopeGuard` Admin/superuser scope-bypass parity (`isCrmAdmin()` in `crm-claims.ts`, mirroring Bassan `permissions.guard.ts` L72-74). Auth is never bypassed — only the scope check.
+- `actor.subject` = the verified Bassan `crm.*` JWT `sub` (opaque). If unavailable (missing token → 401), `actor.subject = "anonymous"` and `decision = deny_403` / `outcome = unauthorized`.
+- `metadata` is OPTIONAL and MUST remain PII-free; only non-sensitive fields (`rule`, `bypassReason`) allowed.
+
+### 16.5 Fail-Closed Semantics (MANDATORY — mirror `rbac.guard.ts` `auditViolation`)
+The authorization decision is computed FIRST and is **INDEPENDENT** of audit delivery. Audit is strictly best-effort:
+1. The guard finalizes its decision (allow → `return true`; deny → `throw 401/403`) and emits the audit event as a **fire-and-forget** call: `void this.audit.emitCrmDecision(event).catch(() => { /* logged inside sink */ })`. The guard **NEVER awaits** the emit for the auth response.
+2. A transient audit failure (network error, timeout, Kernel 5xx, **or Kernel returning 401/403 on the audit endpoint itself**) MUST NEVER:
+   - flip a `deny` → `allow`,
+   - add latency that opens/weakens the auth path,
+   - surface an error to the client,
+   - throw from the guard.
+3. On audit failure the sink logs server-side only: `logger.error({ message: 'CRM audit emit failed (fail-closed maintained)', correlationId, errorCode: 'CRM_AUDIT_EMIT_FAILED' })` — **NO JWT, NO PII, NO error-object dump** (mirror `redactSensitiveData` in `CoreClient`).
+4. If the Suite S2S signing material is missing (env unset), the sink skips emission + logs a warn; the guard's own decision is **UNCHANGED** (the crm guard's decision is claims-derived locally and does not depend on Kernel).
+5. **NO retry loop** that could leak or hang the request. An optional bounded background retry (max 2, 250ms/1s, hard total ≤ 5s) is permitted ONLY as fire-and-forget durability; it MUST NOT be awaited by the guard and MUST NOT affect the auth decision.
+6. The audit endpoint is S2S-protected; if Core rejects the emit with 401/403, that is an **audit-pipeline fault, NOT an auth fault** — silently logged, never propagated to the crm decision.
+
+### 16.6 Sink Client Location (SHAVI)
+- **File**: `modules/platform-admin/src/customer/auth/bassan-crm/bassan-crm-audit.ts`.
+- **Class**: `BassanCrmAuditSink` (`@Injectable()`), exposing `emitCrmDecision(event: CrmAuditEvent): Promise<void>`.
+- **Instantiated ONLY after this contract is ratified AND the Kernel endpoint exists.** Until then, the guard emits NOTHING (current behavior by design).
+- **Dependencies**: `CORE_API_BASE_URL` env, `PLATFORM_ADMIN_JWT_PRIVATE_KEY_PEM_B64` + `PLATFORM_ADMIN_JWT_KID` env (existing), native `fetch`, `crypto`. **NO new npm dependency.**
+- MUST call `assertCoreEndpointAllowed('POST', '/api/v2/admin/audit/events')` before the fetch (drift guard).
+
+### 16.7 Constraints (from remediation — MUST HOLD)
+- No Bassan/Kernel code touched by SHAVI (Kernel implements the endpoint per this contract).
+- No new npm dependency (Node `crypto` + native `fetch` only).
+- Delegation pattern preserved: **NO local `crm.leads` / `crm.tasks` permission rows** created by the sink; the event is derived purely from verified claims.
+- MUST NOT emit to SHAVI-local `AuditService`.
+
+### 16.8 Stop Rules (additive)
+Execution MUST STOP if:
+- The crm audit emit targets any endpoint other than `POST /api/v2/admin/audit/events` (allowlist assertion).
+- The emit uses the Bassan `crm.*` JWT or a user/session token for outbound auth (must use Suite S2S).
+- Audit failure is allowed to flip a `deny` → `allow` or is propagated to the client.
+- The sink writes local `crm.*` permission rows.
+- PII is placed in the audit payload.
+
+---
+
+## 17) Amendment Record — Audit Emission (APPROVED, ratified 2026-07-19)
+
+**Author**: Hermes Agent — shavi-architecture (Shavi autonomous engineer). **Date**: 2026-07-19.
+**Trigger**: G-SEC-2 remediation **t_bd05896c** / security gate **t_9d8689f9** criterion 4 — `CrmScopeGuard` must emit every `crm.*` decision to Bassan Kernel central audit (not the SHAVI-local `AuditService`). Verified gap: no Bassan audit sink/transport/client existed anywhere in `suite-shavi`; contracts named Kernel as audit owner ("black box") but defined no emission path.
+**Change (APPROVED — ratified 2026-07-19)**:
+- New authorized Core endpoint `POST /api/v2/admin/audit/events` (S2S) — §12 row + §16.
+- Full Suite→Kernel audit emission contract: transport (HTTPS/S2S POST), auth (reuse S2S Model B, dedicated emitter principal), payload schema (NON-PII crm.* decision event), fail-closed semantics (mirror `rbac.guard.ts`), sink location (`bassan-crm-audit.ts`).
+- No frozen-architecture change: extends Contract A within the existing S2S Model B; requires only a Contract A version bump (v2 → v3) + Governance approval — no ADR-013/014/015 freeze exception needed.
+**Status**: ✅ **RATIFIED by Governance Authority (Founder) on 2026-07-19.** Binding as Contract A **v3 (APPROVED)**. §12/§16/§17 PROPOSED markers flipped to active; version bumped v2 → v3. Backend (t_7cc0bbe7) may now wire `CrmScopeGuard` → central audit sink; security gate **t_9d8689f9** criterion 4 may proceed after wiring.

@@ -9,7 +9,7 @@
 | -------------- | ------------------------------------------------ |
 | Document Title | INTEGRATION_CONTRACT_CORE                        |
 | Repo           | Suite (Layer / Product Repo)                     |
-| Version        | **v3 (APPROVED)**                                |
+| Version        | **v3.1 (APPROVED)**                              |
 | Status         | ACTIVE — BINDING INTEGRATION CONTRACT            |
 | Execution Mode | STRICT · FAIL-CLOSED · GOVERNANCE-FIRST          |
 | Authority      | Governance Authority (Layer)                     |
@@ -196,6 +196,7 @@ Contract is ACTIVE/BINDING when ALL true:
 | ------------------------ | ------ | --------------------------------------------- | ---- | ---------------------------------------- |
 | **Org validation (admin)** | GET    | `/api/v2/admin/organizations/:id`             | S2S  | Validate org exists before mapping **(NEW — fixes validation bug)** |
 | Org read (tenant)        | GET    | `/api/v1/organizations/:id`                   | User JWT | Tenant reads own org                |
+| Customer login (Model A)| POST   | `/api/v1/auth/login`                          | Customer session JWT | Issue Model A customer access token (tenant broker, ADR-016 D4) |
 | Org create               | POST   | `/api/v2/admin/organizations`                 | S2S  | Provision org (PR-101)                   |
 | Org lifecycle — suspend  | PATCH  | `/api/v2/admin/organizations/:id/suspend`     | S2S  | Suspend org                              |
 | Org lifecycle — unsuspend | PATCH | `/api/v2/admin/organizations/:id/unsuspend`   | S2S  | Unsuspend org                            |
@@ -203,6 +204,17 @@ Contract is ACTIVE/BINDING when ALL true:
 | **Audit event emit (NEW — v3)** | POST | `/api/v2/admin/audit/events`              | S2S  | Emit Suite→Kernel audit event (crm.* auth decisions) — **ratified 2026-07-19 (see §16)** |
 
 > **CRITICAL**: Platform-admin validation MUST use `GET /api/v2/admin/organizations/:id` (S2S). The tenant endpoint `GET /api/v1/organizations/:id` MUST NOT be used for platform-admin validation — it requires a user JWT with `orgId` and would reject the S2S token (the bug described in §0, resolved 2026-07-12 — current code already uses the v2/admin endpoint per §15).
+
+### 12.1 Tenant Broker (CustomerKernelBrokerService) Authorized Core Endpoints — ADR-016 D4
+
+The Suite tenant broker (`CustomerKernelBrokerService`, `modules/platform-admin/src/customer/kernel/customer-kernel-broker.service.ts`) is the **ONLY** component that calls Core on behalf of a Workspace user (Contract B §3.2 / §5.2). It is permitted to call **exactly** the following Core endpoints, enforced at runtime by `assertCustomerEndpointAllowed()` → `CUSTOMER_ALLOWED_CORE_ENDPOINTS` in `core.contract.assert.ts` (**single source of truth**). Any other Core endpoint → `STOP` (fail-closed).
+
+| Capability | Method | Endpoint | Auth | Purpose |
+| --- | --- | --- | --- | --- |
+| Customer login (Model A) | POST | `/api/v1/auth/login` | Customer session JWT | Issue Model A customer access token (Core owns user auth; token held server-side, never exposed to Workspace) |
+| Org read (tenant) | GET | `/api/v1/organizations/:id` | User JWT (stored Core token) | Tenant reads own org (user-scoped) — see §12 "Org read (tenant)" row |
+
+> **Governance note**: This subsection ratifies the runtime allowlist already enforced in code (ADR-016 D4). It does **not** introduce any new callable endpoint beyond what `CUSTOMER_ALLOWED_CORE_ENDPOINTS` permits. The Workspace-facing CRM contact endpoints (`/api/customer/v1/crm/contacts`, GET/POST, `crm.leads:read`/`crm.leads:write`) are **not** Core endpoints and are documented in `INTEGRATION_CONTRACT_WORKSPACE.md`, not here.
 
 ---
 
@@ -343,3 +355,14 @@ Execution MUST STOP if:
 - Full Suite→Kernel audit emission contract: transport (HTTPS/S2S POST), auth (reuse S2S Model B, dedicated emitter principal), payload schema (NON-PII crm.* decision event), fail-closed semantics (mirror `rbac.guard.ts`), sink location (`bassan-crm-audit.ts`).
 - No frozen-architecture change: extends Contract A within the existing S2S Model B; requires only a Contract A version bump (v2 → v3) + Governance approval — no ADR-013/014/015 freeze exception needed.
 **Status**: ✅ **RATIFIED by Governance Authority (Founder) on 2026-07-19.** Binding as Contract A **v3 (APPROVED)**. §12/§16/§17 PROPOSED markers flipped to active; version bumped v2 → v3. Backend (t_7cc0bbe7) may now wire `CrmScopeGuard` → central audit sink; security gate **t_9d8689f9** criterion 4 may proceed after wiring.
+
+## 18) Amendment Record — Tenant Broker Core Endpoints (ratified 2026-07-19)
+
+**Author**: Hermes Agent — shavi-architecture (Shavi autonomous engineer). **Date**: 2026-07-19.
+**Trigger**: ADR-016 D4 governance gap — the tenant broker (`CustomerKernelBrokerService`) enforces a runtime allowlist (`CUSTOMER_ALLOWED_CORE_ENDPOINTS` in `core.contract.assert.ts`) that includes `POST /api/v1/auth/login`, but Contract A §12 did not enumerate it. The code-enforced allowlist (single source of truth) must be ratified by the binding contract.
+**Change (RATIFIED — Founder sign-off 2026-07-19)**:
+- New authorized Core endpoint row added to §12: `POST /api/v1/auth/login` (Customer session JWT, Model A) — issued by Core, held server-side, never exposed to the Workspace.
+- New §12.1 enumerates the full tenant-broker Core allowlist enforced at runtime by `assertCustomerEndpointAllowed()` → `CUSTOMER_ALLOWED_CORE_ENDPOINTS` = { `POST /api/v1/auth/login`, `GET /api/v1/organizations/:id` }. The latter is the existing §12 "Org read (tenant)" row; no new callable endpoint is introduced.
+- Clarified that Workspace-facing CRM contact endpoints (`/api/customer/v1/crm/contacts`, GET/POST, `crm.leads:read`/`crm.leads:write`) are **not** Core endpoints and are out of scope of this contract (documented in `INTEGRATION_CONTRACT_WORKSPACE.md`).
+- No frozen-architecture change: extends Contract A within the existing Model A; requires only a Contract A version bump (v3 → v3.1) + Governance approval — no ADR-013/014/015 freeze exception needed.
+**Status**: ✅ **RATIFIED by Governance Authority (Founder) on 2026-07-19.** Binding as Contract A **v3.1 (APPROVED)**. Version bumped v3 → v3.1.

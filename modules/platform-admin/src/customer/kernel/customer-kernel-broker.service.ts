@@ -35,7 +35,14 @@ export class CustomerKernelBrokerService {
 
   async loginUser(email: string, password: string): Promise<string> {
     // RUNTIME CONTRACT ASSERTION: only customer-authorized Core endpoints (ADR-016 D4).
-    assertCustomerEndpointAllowed('POST', '/api/v1/auth/login');
+    // assertCustomerEndpointAllowed throws a bare Error (STOP) on a disallowed endpoint.
+    // Wrap it so the broker surfaces a TYPED CustomerKernelException (→ 502
+    // CUSTOMER_KERNEL_ERROR, Spec §2.3 / ADR-016 D3) — never a bare Error (→ 500).
+    try {
+      assertCustomerEndpointAllowed('POST', '/api/v1/auth/login');
+    } catch {
+      throw new CustomerKernelException('allowlist-violation');
+    }
 
     // Suite-side request correlation id (c-<uuid> per Spec §4.1 / §6); also X-Correlation-Id to Core.
     const correlationId = `c-${randomUUID()}`;

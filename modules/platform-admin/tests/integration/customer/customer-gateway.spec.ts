@@ -37,8 +37,19 @@ describe('Customer Gateway — tenant-scoping + standardized error model (G3)', 
     verify: jest.fn().mockReturnValue(CLAIM),
   };
   const crm: any = {
-    list: jest.fn().mockResolvedValue([]),
-    create: jest.fn().mockResolvedValue({ id: 'c1', name: 'Jane' }),
+    // Contract shapes (Spec §5.5 / §5.6) — the mock MUST return what the real
+    // service returns, otherwise the gap the G1 review flagged stays uncaught.
+    list: jest
+      .fn()
+      .mockResolvedValue({ items: [{ id: 'c1', name: 'Jane', email: 'j@e.com', phone: '+1' }], total: 1 }),
+    create: jest.fn().mockResolvedValue({
+      id: 'c1',
+      name: 'Jane',
+      email: 'jane@example.com',
+      phone: '+1',
+      organizationId: 'ORG-CLAIM',
+      createdAt: '2026-07-19T00:00:00.000Z',
+    }),
   };
   // Real CrmScopeGuard injects BassanCrmJwtVerifier -> we mock it to issue/deny scopes.
   const crmVerifier: any = { verify: jest.fn() };
@@ -67,8 +78,15 @@ describe('Customer Gateway — tenant-scoping + standardized error model (G3)', 
     // Restore default behaviours after clearAllMocks.
     session.verify.mockReturnValue(CLAIM);
     broker.loginUser.mockResolvedValue('core.jwt.token');
-    crm.list.mockResolvedValue([]);
-    crm.create.mockResolvedValue({ id: 'c1', name: 'Jane' });
+    crm.list.mockResolvedValue({ items: [{ id: 'c1', name: 'Jane', email: 'j@e.com', phone: '+1' }], total: 1 });
+    crm.create.mockResolvedValue({
+      id: 'c1',
+      name: 'Jane',
+      email: 'jane@example.com',
+      phone: '+1',
+      organizationId: 'ORG-CLAIM',
+      createdAt: '2026-07-19T00:00:00.000Z',
+    });
     // Grants both crm.leads scopes (enough for list+create routes).
     crmVerifier.verify.mockResolvedValue({ sub: 'bassan-user', scope: 'crm.leads:read crm.leads:write' });
   });
@@ -163,6 +181,44 @@ describe('Customer Gateway — tenant-scoping + standardized error model (G3)', 
         .send({ name: 'Jane', email: 'jane@example.com' });
       expect(res.status).toBe(201);
       expect(crm.create).toHaveBeenCalledWith('ORG-CLAIM', expect.anything());
+    });
+  });
+
+  describe('CRM response shapes (Spec §5.5 / §5.6)', () => {
+    it('GET /crm/contacts returns { items, total } envelope (Spec §5.5)', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/customer/v1/crm/contacts')
+        .set('Authorization', 'Bearer tok')
+        .set('x-bassan-crm-token', 'bassan.crm.jwt');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.items)).toBe(true);
+      expect(typeof res.body.total).toBe('number');
+      expect(res.body.total).toBe(res.body.items.length);
+      for (const item of res.body.items) {
+        expect(item).toHaveProperty('id');
+        expect(item).toHaveProperty('name');
+        // Internal tenant column must NEVER be exposed to the client.
+        expect(item).not.toHaveProperty('suiteOrgId');
+      }
+    });
+
+    it('POST /crm/contacts returns { id, name, email, phone, organizationId, createdAt } (Spec §5.6)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/customer/v1/crm/contacts')
+        .set('Authorization', 'Bearer tok')
+        .set('x-bassan-crm-token', 'bassan.crm.jwt')
+        .send({ name: 'Jane', email: 'jane@example.com', phone: '+1' });
+      expect(res.status).toBe(201);
+      expect(res.body).toEqual({
+        id: 'c1',
+        name: 'Jane',
+        email: 'jane@example.com',
+        phone: '+1',
+        organizationId: 'ORG-CLAIM',
+        createdAt: '2026-07-19T00:00:00.000Z',
+      });
+      // Internal tenant column must NEVER be exposed to the client.
+      expect(res.body).not.toHaveProperty('suiteOrgId');
     });
   });
 

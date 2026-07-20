@@ -3,7 +3,7 @@ import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { InternalUserService } from '../../../src/internal-users/internal-user.service';
 import { InternalUserRepository } from '../../../src/internal-users/internal-user.repository';
 import { AuditService } from '../../../src/audit/audit.service';
-import { UserStatus, UserRole } from '@prisma/client';
+import { UserStatus, UserRole, InviteStatus } from '@prisma/client';
 
 describe('InternalUserService', () => {
   let service: InternalUserService;
@@ -48,10 +48,14 @@ describe('InternalUserService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',
+        passwordHash: null,
+        inviteTokenHash: null,
+        inviteExpiresAt: null,
+        inviteStatus: InviteStatus.pending,
       };
 
       jest.spyOn(repository, 'findByEmail').mockResolvedValue(null);
-      
+
       // Mock $transaction to execute callback immediately
       (repository as any).prisma = {
         $transaction: jest.fn(async (callback) => callback({
@@ -93,8 +97,8 @@ describe('InternalUserService', () => {
   describe('findAll', () => {
     it('should return all users', async () => {
       const mockUsers = [
-        { id: 'user-1', email: 'user1@example.com', name: 'User 1', role: UserRole.platform_admin, status: UserStatus.active, createdAt: new Date(), updatedAt: new Date(), createdBy: 'creator-1' },
-        { id: 'user-2', email: 'user2@example.com', name: 'User 2', role: UserRole.viewer, status: UserStatus.active, createdAt: new Date(), updatedAt: new Date(), createdBy: 'creator-1' },
+        { id: 'user-1', email: 'user1@example.com', name: 'User 1', role: UserRole.platform_admin, status: UserStatus.active, createdAt: new Date(), updatedAt: new Date(), createdBy: 'creator-1', passwordHash: null, inviteTokenHash: null, inviteExpiresAt: null, inviteStatus: InviteStatus.pending },
+        { id: 'user-2', email: 'user2@example.com', name: 'User 2', role: UserRole.viewer, status: UserStatus.active, createdAt: new Date(), updatedAt: new Date(), createdBy: 'creator-1', passwordHash: null, inviteTokenHash: null, inviteExpiresAt: null, inviteStatus: InviteStatus.pending },
       ];
 
       jest.spyOn(repository, 'findAll').mockResolvedValue(mockUsers);
@@ -118,6 +122,10 @@ describe('InternalUserService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',
+        passwordHash: null,
+        inviteTokenHash: null,
+        inviteExpiresAt: null,
+        inviteStatus: InviteStatus.pending,
       };
 
       jest.spyOn(repository, 'findById').mockResolvedValue(mockUser);
@@ -147,12 +155,16 @@ describe('InternalUserService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',
+        passwordHash: null,
+        inviteTokenHash: null,
+        inviteExpiresAt: null,
+        inviteStatus: InviteStatus.pending,
       };
 
       const updatedUser = { ...mockUser, status: UserStatus.deactivated };
 
       jest.spyOn(repository, 'findById').mockResolvedValue(mockUser);
-      
+
       // Mock $transaction to execute callback immediately
       (repository as any).prisma = {
         $transaction: jest.fn(async (callback) => callback({
@@ -184,6 +196,10 @@ describe('InternalUserService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',
+        passwordHash: null,
+        inviteTokenHash: null,
+        inviteExpiresAt: null,
+        inviteStatus: InviteStatus.pending,
       };
 
       jest.spyOn(repository, 'findById').mockResolvedValue(mockUser);
@@ -202,6 +218,10 @@ describe('InternalUserService', () => {
         createdAt: new Date(),
         updatedAt: new Date(),
         createdBy: 'creator-1',
+        passwordHash: null,
+        inviteTokenHash: null,
+        inviteExpiresAt: null,
+        inviteStatus: InviteStatus.pending,
       };
 
       const error = new Error('Database error');

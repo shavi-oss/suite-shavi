@@ -18,7 +18,7 @@ describe('ExplicitAllowGuard', () => {
   describe('canActivate', () => {
     it('should always return true', () => {
       const mockContext = {} as ExecutionContext;
-      const result = guard.canActivate(mockContext);
+      const result = guard.canActivate();
       expect(result).toBe(true);
     });
 
@@ -29,13 +29,13 @@ describe('ExplicitAllowGuard', () => {
           getResponse: () => ({}),
         }),
       } as ExecutionContext;
-      const result = guard.canActivate(mockContext);
+      const result = guard.canActivate();
       expect(result).toBe(true);
     });
 
     it('should not throw exceptions', () => {
       const mockContext = {} as ExecutionContext;
-      expect(() => guard.canActivate(mockContext)).not.toThrow();
+      expect(() => guard.canActivate()).not.toThrow();
     });
   });
 });

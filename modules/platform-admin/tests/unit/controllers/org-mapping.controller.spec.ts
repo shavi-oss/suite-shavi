@@ -95,7 +95,7 @@ describe('OrgMappingController', () => {
       };
 
       await expect(controller.create(dto, req)).rejects.toThrow(
-        'Core JWT is required for org mapping validation'
+        'Core auth not configured. Contact your administrator.'
       );
     });
   });

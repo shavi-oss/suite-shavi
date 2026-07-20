@@ -45,7 +45,7 @@ describe('CoreClient', () => {
 
       expect(result).toBe(true);
       expect(global.fetch).toHaveBeenCalledWith(
-        'http://core-api.test/api/v1/organizations/core-1',
+        'http://core-api.test/api/v2/admin/organizations/core-1',
         expect.objectContaining({
           method: 'GET',
           headers: expect.objectContaining({

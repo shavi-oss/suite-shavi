@@ -18,6 +18,7 @@ import { PlatformAdminModule } from '../../platform-admin.module';
 import { HealthController } from '../../controllers/health.controller';
 import { APP_GUARD } from '@nestjs/core';
 import { ExecutionContext } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { OrgMappingService } from '../../src/org-mapping/org-mapping.service';
 import { OrgMappingRepository } from '../../src/org-mapping/org-mapping.repository';
 import { OrganizationRepository } from '../../src/organizations/organization.repository';
@@ -27,19 +28,24 @@ import { AuditService } from '../../src/audit/audit.service';
 describe('Fail-Closed Security', () => {
   describe('deny-by-default enforcement', () => {
     it('should deny all requests by default', () => {
-      const guard = new DenyAllGuard();
-      const mockContext = {} as ExecutionContext;
+      const guard = new DenyAllGuard(new Reflector());
+      const mockContext = {
+        getHandler: () => jest.fn(),
+        getClass: () => jest.fn(),
+      } as unknown as ExecutionContext;
       const result = guard.canActivate(mockContext);
       expect(result).toBe(false);
     });
 
     it('should not allow bypass', () => {
-      const guard = new DenyAllGuard();
+      const guard = new DenyAllGuard(new Reflector());
       const mockContext = {
+        getHandler: () => jest.fn(),
+        getClass: () => jest.fn(),
         switchToHttp: () => ({
           getRequest: () => ({ headers: { authorization: 'Bearer fake-token' } }),
         }),
-      } as ExecutionContext;
+      } as unknown as ExecutionContext;
       const result = guard.canActivate(mockContext);
       expect(result).toBe(false);
     });
@@ -104,7 +110,7 @@ describe('Fail-Closed Security', () => {
         });
       });
 
-      expect(guardUsageCount).toBe(4); // EXACTLY four usages
+      expect(guardUsageCount).toBe(1); // EXACTLY one ExplicitAllowGuard class usage (HealthController); @ExplicitAllow() decorator is now class-level metadata read by DenyAllGuard
     });
   });
 

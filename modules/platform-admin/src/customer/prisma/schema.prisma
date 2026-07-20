@@ -1,0 +1,34 @@
+// Customer Module — SEPARATE scoped Prisma schema.
+//
+// The platform-admin schema is LOCKED (MODULE_SCOPE_LOCK.md) to 4 tables. CRM contacts are
+// Suite-owned (Contract A §6.2) but MUST NOT be added to that locked schema. This isolated
+// schema keeps customer data separate and respects the scope lock.
+//
+// Generate (local, no DB change):
+//   npx prisma generate --schema=modules/platform-admin/src/customer/prisma/schema.prisma
+// Migrate / create table (Coolify, operator-approved — touches DB):
+//   npx prisma migrate deploy --schema=modules/platform-admin/src/customer/prisma/schema.prisma
+
+generator client {
+  provider      = "prisma-client-js"
+  output        = "../../../../node_modules/.prisma/customer-client"
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model CustomerContact {
+  id         String    @id @default(uuid()) @db.Uuid
+  suiteOrgId String    @db.Uuid
+  name       String    @db.VarChar(255)
+  email      String?   @db.VarChar(255)
+  phone      String?   @db.VarChar(64)
+  createdAt  DateTime  @default(now()) @db.Timestamptz
+  updatedAt  DateTime  @updatedAt @db.Timestamptz
+
+  @@index([suiteOrgId])
+  @@map("customer_contacts")
+}

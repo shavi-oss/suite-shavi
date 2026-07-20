@@ -1,0 +1,60 @@
+import {
+  Body,
+  Controller,
+  Get,
+  Post,
+  Req,
+  UseFilters,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
+import { ExplicitAllow } from '../../../guards/explicit-allow.guard';
+import { CustomerSessionGuard } from '../auth/customer-session.guard';
+import { CrmScopeGuard, RequireCrmScope } from '../auth/bassan-crm/crm-scope.guard';
+import { CustomerCrmService } from './customer-crm.service';
+import { CreateContactDto } from './dto/create-contact.dto';
+import { CustomerAllExceptionsFilter } from '../errors/customer-all-exceptions.filter';
+
+/**
+ * Customer CRM Controller — /api/customer/v1/crm/contacts
+ * Suite-owned data (Contract A §6.2). Tenant (suiteOrgId) comes from the Session JWT
+ * claim ONLY — never from a client header (Contract B §4.1).
+ *
+ * G-SEC-2 (2/3) delegation: each route also enforces a Bassan-issued crm.* scope
+ * via @RequireCrmScope + CrmScopeGuard (Bassan is sole authority; SHAVI stores no
+ * local crm.* permission rows). crm.tasks:* permissions are reserved for future
+ * task endpoints and use the same guard/decorator.
+ *
+ * Error envelope + DTO validation (ADR-016 D3): @UseFilters scopes the CUSTOMER_*
+ * envelope to this controller; @UsePipes validates CreateContactDto (whitelist+
+ * transform+forbidNonWhitelisted). Scoped, not app-wide (see auth controller note).
+ */
+@Controller('api/customer/v1/crm')
+@UseFilters(CustomerAllExceptionsFilter)
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    transform: true,
+    forbidNonWhitelisted: true,
+  }),
+)
+export class CustomerCrmController {
+  constructor(private readonly crm: CustomerCrmService) {}
+
+  @Get('contacts')
+  @ExplicitAllow()
+  @RequireCrmScope('crm.leads:read')
+  @UseGuards(CustomerSessionGuard, CrmScopeGuard)
+  list(@Req() req: any) {
+    return this.crm.list(req.user.organizationId);
+  }
+
+  @Post('contacts')
+  @ExplicitAllow()
+  @RequireCrmScope('crm.leads:write')
+  @UseGuards(CustomerSessionGuard, CrmScopeGuard)
+  create(@Req() req: any, @Body() dto: CreateContactDto) {
+    return this.crm.create(req.user.organizationId, dto);
+  }
+}

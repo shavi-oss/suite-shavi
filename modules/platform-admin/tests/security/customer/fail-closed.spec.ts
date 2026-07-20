@@ -5,6 +5,7 @@
  */
 import { CustomerSessionService } from '../../../src/customer/auth/customer-session.service';
 import { CustomerSessionGuard } from '../../../src/customer/auth/customer-session.guard';
+import { MemorySessionStore } from '../../../src/customer/auth/memory-session-store';
 import { UnauthorizedException, ArgumentsHost, Logger } from '@nestjs/common';
 import { CustomerAllExceptionsFilter } from '../../../src/customer/errors/customer-all-exceptions.filter';
 import { CustomerKernelException } from '../../../src/customer/errors/customer-kernel.exception';
@@ -16,7 +17,7 @@ function fakeBroker(token: string) {
 const CORE_PAYLOAD = Buffer.from(
   JSON.stringify({ sub: 'u1', email: 'a@b.c', organizationId: 'org-1' }),
 ).toString('base64url');
-const CORE_TOKEN='h.' + CORE_PAYLOAD + '.s';
+const CORE_TOKEN = 'h.' + CORE_PAYLOAD + '.s';
 
 function makeCtx(req: any) {
   return {
@@ -27,24 +28,31 @@ function makeCtx(req: any) {
 }
 
 describe('Customer Gateway - Fail-Closed Security Gate', () => {
+  let store: MemorySessionStore;
   beforeAll(() => {
     process.env.CUSTOMER_SESSION_SECRET = 'test-secret';
   });
+  beforeEach(() => {
+    store = new MemorySessionStore();
+  });
+  afterEach(async () => {
+    await store.close();
+  });
 
   it('STOP RULE: tenant header X-Organization-Id is NEVER trusted', async () => {
-    const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN));
+    const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN), store);
     const login = await svc.login('a@b.c', 'password123');
     const guard = new CustomerSessionGuard(svc);
     const req: any = {
       headers: { authorization: 'Bearer ' + login.token, 'x-tenant-id': 'SPOOF', 'x-organization-id': 'SPOOF' },
     };
-    guard.canActivate(makeCtx(req));
+    await guard.canActivate(makeCtx(req));
     expect(req.user.organizationId).toBe('org-1');
     expect(req.user.organizationId).not.toBe('SPOOF');
   });
 
   it('STOP RULE: Core token is never exposed to the Workspace', async () => {
-    const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN));
+    const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN), store);
     const res = await svc.login('a@b.c', 'password123');
     const body = JSON.stringify(res);
     expect(body).not.toContain(CORE_TOKEN);
@@ -52,9 +60,9 @@ describe('Customer Gateway - Fail-Closed Security Gate', () => {
   });
 
   it('STOP RULE: invalid/expired Session JWT is denied', async () => {
-    const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN));
+    const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN), store);
     const guard = new CustomerSessionGuard(svc);
-    expect(() => guard.canActivate(makeCtx({ headers: { authorization: 'Bearer x.y.z' } }))).toThrow(UnauthorizedException);
+    await expect(guard.canActivate(makeCtx({ headers: { authorization: 'Bearer x.y.z' } }))).rejects.toThrow(UnauthorizedException);
   });
 });
 
@@ -82,12 +90,12 @@ function runEnvelope(exception: unknown): { body: any; logged: string } {
 }
 
 describe('Customer Gateway - Standardized error envelope (ADR-016 D3)', () => {
-  it('a guard-denied session produces the CUSTOMER_UNAUTHORIZED envelope (no Core token leak)', () => {
-    const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN));
+  it('a guard-denied session produces the CUSTOMER_UNAUTHORIZED envelope (no Core token leak)', async () => {
+    const svc = new CustomerSessionService(fakeBroker(CORE_TOKEN), new MemorySessionStore());
     const guard = new CustomerSessionGuard(svc);
     let thrown: UnauthorizedException | null = null;
     try {
-      guard.canActivate(makeCtx({ headers: { authorization: 'Bearer x.y.z' } }));
+      await guard.canActivate(makeCtx({ headers: { authorization: 'Bearer x.y.z' } }));
     } catch (e) {
       thrown = e as UnauthorizedException;
     }

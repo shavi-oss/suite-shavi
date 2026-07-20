@@ -56,7 +56,7 @@ export class CustomerAuthController {
   @ExplicitAllow()
   @UseGuards(CustomerSessionGuard)
   async refresh(@Req() req: any): Promise<SessionResponseDto> {
-    const { token, expiresIn } = this.session.refresh(req.customerToken);
+    const { token, expiresIn } = await this.session.refresh(req.customerToken);
     return { accessToken: token, tokenType: 'Bearer', expiresIn };
   }
 
@@ -64,7 +64,7 @@ export class CustomerAuthController {
   @ExplicitAllow()
   @UseGuards(CustomerSessionGuard)
   async logout(@Req() req: any): Promise<{ success: boolean }> {
-    this.session.logout(req.customerToken);
+    await this.session.logout(req.customerToken);
     return { success: true };
   }
 }

@@ -27,7 +27,7 @@ export class CustomerSessionGuard implements CanActivate {
 
   constructor(private readonly sessionService: CustomerSessionService) {}
 
-  canActivate(context: ExecutionContext): boolean {
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest();
     const auth = req.headers?.authorization;
     const token = auth && auth.startsWith('Bearer ') ? auth.slice(7) : null;
@@ -38,7 +38,7 @@ export class CustomerSessionGuard implements CanActivate {
     }
 
     // verify() throws 401 if invalid/expired/invalidated
-    const claims = this.sessionService.verify(token);
+    const claims = await this.sessionService.verify(token);
 
     // Tenant from JWT claim ONLY (Contract B §4.1)
     (req as any).user = {

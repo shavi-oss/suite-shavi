@@ -38,6 +38,7 @@ RUN rm -rf modules/platform-admin/node_modules/.prisma
 # Schema lives at modules/platform-admin/prisma/schema.prisma
 # Output: node_modules/.prisma/client (per schema.prisma generator config)
 RUN npx prisma generate --schema=modules/platform-admin/prisma/schema.prisma
+RUN npx prisma generate --schema=modules/platform-admin/src/customer/prisma/schema.prisma
 
 # ── Verify linux-musl engine binary is present (fail-fast) ───────────────────
 # If this step fails, the Prisma binary was not downloaded and the app would

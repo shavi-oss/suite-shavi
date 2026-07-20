@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, Inject } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import {
   signSession,
@@ -8,6 +8,7 @@ import {
   CustomerSessionClaims,
 } from './customer-jwt.util';
 import { CustomerKernelBrokerService } from '../kernel/customer-kernel-broker.service';
+import { SessionRecord, SessionStore } from './customer-session-store.interface';
 
 /**
  * CustomerSessionService — issues / rotates / invalidates the Workspace Session JWT.
@@ -18,22 +19,21 @@ import { CustomerKernelBrokerService } from '../kernel/customer-kernel-broker.se
  *  - Suite mints its OWN Session JWT (HS256) wrapping { sub, email, organizationId, jti }.
  *  - The Core accessToken is stored SERVER-SIDE (keyed by jti) and NEVER leaves Suite.
  *  - Logout / expiry deletes the server-side record, so the SessionGuard denies thereafter.
+ *
+ * F1 remediation: the server-side record lives in a pluggable SessionStore
+ * (Redis when REDIS_URL is set — shared + TTL; in-memory + TTL sweep otherwise).
+ * See customer.module.ts for the provider selection.
  */
-
-interface SessionRecord {
-  userId: string;
-  email: string;
-  organizationId: string;
-  kernelToken: string; // Core user-scoped accessToken — NEVER returned to client
-}
 
 @Injectable()
 export class CustomerSessionService {
   private readonly logger = new Logger(CustomerSessionService.name);
-  private readonly sessions = new Map<string, SessionRecord>();
   private readonly SESSION_TTL_SEC = 900; // 15 minutes
 
-  constructor(private readonly broker: CustomerKernelBrokerService) {}
+  constructor(
+    private readonly broker: CustomerKernelBrokerService,
+    @Inject('SESSION_STORE') private readonly store: SessionStore,
+  ) {}
 
   async login(
     email: string,
@@ -51,12 +51,13 @@ export class CustomerSessionService {
     }
 
     const jti = randomUUID();
-    this.sessions.set(jti, {
+    const record: SessionRecord = {
       userId: kernelClaims.sub,
       email: kernelClaims.email,
       organizationId,
       kernelToken,
-    });
+    };
+    await this.store.set(jti, record, this.SESSION_TTL_SEC);
 
     const token = signSession(
       { sub: kernelClaims.sub, email: kernelClaims.email, organizationId, jti },
@@ -66,16 +67,16 @@ export class CustomerSessionService {
     return { token, expiresIn: this.SESSION_TTL_SEC };
   }
 
-  refresh(oldToken: string): { token: string; expiresIn: number } {
+  async refresh(oldToken: string): Promise<{ token: string; expiresIn: number }> {
     const old = verifySession(oldToken, customerSessionSecret());
-    const record = this.sessions.get(old.jti);
+    const record = await this.store.get(old.jti);
     if (!record) {
       throw new UnauthorizedException('Session expired');
     }
     // Rotate jti so the old token can no longer be used
-    this.sessions.delete(old.jti);
+    await this.store.delete(old.jti);
     const jti = randomUUID();
-    this.sessions.set(jti, record);
+    await this.store.set(jti, record, this.SESSION_TTL_SEC);
     const token = signSession(
       { sub: record.userId, email: record.email, organizationId: record.organizationId, jti },
       customerSessionSecret(),
@@ -84,10 +85,10 @@ export class CustomerSessionService {
     return { token, expiresIn: this.SESSION_TTL_SEC };
   }
 
-  logout(token: string): void {
+  async logout(token: string): Promise<void> {
     try {
       const claims = verifySession(token, customerSessionSecret());
-      this.sessions.delete(claims.jti);
+      await this.store.delete(claims.jti);
     } catch {
       // already invalid — idempotent
     }
@@ -98,16 +99,19 @@ export class CustomerSessionService {
    * Throws UnauthorizedException if invalid, expired, or invalidated (logout).
    * Used by CustomerSessionGuard.
    */
-  verify(token: string): CustomerSessionClaims {
+  async verify(token: string): Promise<CustomerSessionClaims> {
     const claims = verifySession(token, customerSessionSecret());
-    if (!this.sessions.has(claims.jti)) {
+    const record = await this.store.get(claims.jti);
+    if (!record) {
       throw new UnauthorizedException('Session invalidated');
     }
     return claims;
   }
 
-  /** Server-side Kernel token lookup (for future Kernel-brokered endpoints). NEVER log it. */
-  getKernelToken(jti: string): string | null {
-    return this.sessions.get(jti)?.kernelToken ?? null;
+  /**
+   * Server-side Kernel token lookup (for future Kernel-brokered endpoints). NEVER log it.
+   */
+  async getKernelToken(jti: string): Promise<string | null> {
+    return (await this.store.get(jti))?.kernelToken ?? null;
   }
 }

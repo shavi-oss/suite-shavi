@@ -12,6 +12,9 @@ import { BassanCrmJwtVerifier } from './auth/bassan-crm/bassan-crm-jwt-verifier'
 import { CrmScopeGuard } from './auth/bassan-crm/crm-scope.guard';
 import { BassanCrmAuditSink } from './auth/bassan-crm/bassan-crm-audit';
 import { S2sTokenService } from '../auth/s2s-token.service';
+import { SessionStore } from './auth/customer-session-store.interface';
+import { MemorySessionStore } from './auth/memory-session-store';
+import { RedisSessionStore } from './auth/redis-session-store';
 import { BASSAN_CRM_KEY_PROVIDER, EnvBassanKeyProvider } from './auth/bassan-crm/bassan-key-provider';
 
 /**
@@ -23,6 +26,13 @@ import { BASSAN_CRM_KEY_PROVIDER, EnvBassanKeyProvider } from './auth/bassan-crm
   controllers: [CustomerAuthController, CustomerMeController, CustomerCrmController],
   providers: [
     CustomerSessionService,
+    {
+      provide: 'SESSION_STORE',
+      useFactory: (): SessionStore => {
+        const url = process.env.REDIS_URL;
+        return url ? new RedisSessionStore(url) : new MemorySessionStore();
+      },
+    },
     CustomerSessionGuard,
     CustomerCrmService,
     CustomerCrmRepository,
